@@ -36,7 +36,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    query = mo.ui.text(full_width=True, debounce=True, value=".dddrdrre")
+    query = mo.ui.text(full_width=True, debounce=True, value=".dddrd")
     button = mo.ui.button(label="Search")
     mo.md(f"""Adiastematic query (as regex): {query} {button}""")
     return (query,)
@@ -95,7 +95,7 @@ def _(pd, re):
 @app.cell
 def _(find_rows, pd, query, transform_to_contour):
 
-    before_corpus = pd.read_csv("corpus.csv")
+    before_corpus = pd.read_csv("https://raw.githubusercontent.com/timeipert/adiastematic_search/refs/heads/master/corpus.csv")
     before_corpus["volpiano_pitches"] = before_corpus["volpiano"].str.replace("-", "")
     before_corpus.dropna(subset=["volpiano_pitches"])
 
