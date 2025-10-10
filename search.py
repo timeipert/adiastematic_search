@@ -9,7 +9,6 @@ def _():
     import marimo as mo
     import pandas as pd
     import re
-    from volpiano_widget import VolpianoWidget
     return mo, pd, re
 
 
