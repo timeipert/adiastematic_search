@@ -73,7 +73,7 @@ def _(pd, re):
             elif current_pos < last_pos:
                 contour_parts.append("d")
             else:
-                contour_parts.append("e")
+                contour_parts.append("r")
 
         return "".join(contour_parts)
 
@@ -94,8 +94,10 @@ def _(pd, re):
 
 @app.cell
 def _(find_rows, pd, query, transform_to_contour):
-
-    before_corpus = pd.read_csv("https://raw.githubusercontent.com/timeipert/adiastematic_search/refs/heads/master/corpus.csv")
+    try:
+        before_corpus = pd.read_csv("corpus.csv")
+    except:
+        before_corpus = pd.read_csv("raw.githubusercontent.com/timeipert/adiastematic_search/refs/heads/master/corpus.csv")
     before_corpus["volpiano_pitches"] = before_corpus["volpiano"].str.replace("-", "")
     before_corpus.dropna(subset=["volpiano_pitches"])
 
@@ -105,7 +107,6 @@ def _(find_rows, pd, query, transform_to_contour):
 
     search_result = find_rows(corpus, "contour", query.value)
     search_result
-
     return
 
 
