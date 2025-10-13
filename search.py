@@ -97,7 +97,7 @@ def _(find_rows, pd, query, transform_to_contour):
     try:
         before_corpus = pd.read_csv("corpus.csv")
     except:
-        before_corpus = pd.read_csv("raw.githubusercontent.com/timeipert/adiastematic_search/refs/heads/master/corpus.csv")
+        before_corpus = pd.read_csv("https://raw.githubusercontent.com/timeipert/adiastematic_search/refs/heads/master/corpus.csv")
     before_corpus["volpiano_pitches"] = before_corpus["volpiano"].str.replace("-", "")
     before_corpus.dropna(subset=["volpiano_pitches"])
 
