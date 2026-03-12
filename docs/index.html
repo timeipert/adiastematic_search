@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,13 +10,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
+
 <body>
     <div class="overlay"></div>
 
     <main class="dashboard">
         <header class="header">
             <h1>Adiastematic Search</h1>
-            <p>Query melodies across the Corpus Monodicum and specialized datasets using contour notation.</p>
         </header>
 
         <section class="controls glass-panel">
@@ -33,6 +34,14 @@
                         <option value="Schlager Melodies">Schlager Melodies</option>
                     </select>
                 </div>
+                <div class="input-group">
+                    <label>Search Mode</label>
+                    <div class="mode-toggle">
+                        <button id="mode_exact" class="toggle-btn active"
+                            onclick="setSearchMode('exact')">Exact</button>
+                        <button id="mode_fuzzy" class="toggle-btn" onclick="setSearchMode('fuzzy')">Fuzzy</button>
+                    </div>
+                </div>
 
                 <div class="input-group">
                     <label for="search_location">Where should the match occur?</label>
@@ -42,14 +51,8 @@
                         <option value="Only in the End (Coda)">Only in the End (Coda)</option>
                     </select>
                 </div>
-                
-                <div class="input-group">
-                    <label>Search Mode</label>
-                    <div class="mode-toggle">
-                        <button id="mode_exact" class="toggle-btn active" onclick="setSearchMode('exact')">Exact</button>
-                        <button id="mode_fuzzy" class="toggle-btn" onclick="setSearchMode('fuzzy')">Fuzzy</button>
-                    </div>
-                </div>
+
+
 
                 <div class="input-group slider-group">
                     <label for="region_size" id="region_label">Size of search region (%)</label>
@@ -68,16 +71,17 @@
                             <option value="subsequence">Additions Allowed (Subsequence)</option>
                         </select>
                     </div>
-                    
+
                     <div class="input-group slider-group">
                         <label for="fuzzy_threshold" id="threshold_label">Similarity Threshold (%)</label>
                         <input type="range" id="fuzzy_threshold" min="30" max="100" step="5" value="80">
                         <span id="threshold_val">80%</span>
                     </div>
                 </div>
-                
+
                 <div class="algo-explanation" id="algo_explanation">
-                    <strong>Hamming Distance:</strong> Matches the query character-by-character. Allows mismatches but no insertions or deletions. Best for fixed-length motifs.
+                    <strong>Hamming Distance:</strong> Matches the query character-by-character. Allows mismatches but
+                    no insertions or deletions. Best for fixed-length motifs.
                 </div>
             </div>
 
@@ -89,7 +93,7 @@
                 </label>
                 <button id="search_btn" class="primary-btn">Search Melodies</button>
             </div>
-            
+
             <div class="actions secondary-actions">
                 <div class="workflow-group">
                     <div class="saved-queries-container">
@@ -99,7 +103,8 @@
                         <select id="saved_queries_list" onchange="loadSavedQuery(this.value)">
                             <option value="" disabled selected>Load...</option>
                         </select>
-                        <button class="icon-btn delete-btn" onclick="deleteSelectedQuery()" title="Delete Selected Query">🗑️</button>
+                        <button class="icon-btn delete-btn" onclick="deleteSelectedQuery()"
+                            title="Delete Selected Query">🗑️</button>
                     </div>
                 </div>
                 <button class="secondary-btn share-btn" onclick="copyShareLink()">🔗 Share</button>
@@ -112,9 +117,10 @@
                     <h2>Results (<span id="result_count">0</span>)</h2>
                     <div id="loader" class="loader hidden"></div>
                 </div>
-                
+
                 <div class="results-controls">
-                    <input type="text" id="result_filter" placeholder="Filter results..." class="inline-input" oninput="applyResultFilters()">
+                    <input type="text" id="result_filter" placeholder="Filter results..." class="inline-input"
+                        oninput="applyResultFilters()">
                     <select id="sort_by" class="inline-input select-input" onchange="applyResultFilters()">
                         <option value="none">Sort By: Relevance</option>
                         <option value="genre">Sort By: Genre</option>
@@ -122,13 +128,14 @@
                         <option value="position">Sort By: Position</option>
                         <option value="id">Sort By: ID</option>
                     </select>
-                    <button id="view_stats_btn" class="secondary-btn hidden" onclick="openStatsModal()">📊 View Statistics</button>
+                    <button id="view_stats_btn" class="secondary-btn hidden" onclick="openStatsModal()">📊 View
+                        Statistics</button>
                 </div>
             </header>
-            
+
             <div id="results_container" class="results-grid">
                 <!-- Data populated dynamically via JS -->
-                 <div class="empty-state">Ready to search.</div>
+                <div class="empty-state">Ready to search.</div>
             </div>
         </section>
     </main>
@@ -138,9 +145,9 @@
         <div class="modal-content glass-panel">
             <span class="close-modal" onclick="closeStatsModal()">&times;</span>
             <h2 class="modal-title">Search Statistics</h2>
-            
+
             <div class="charts-grid">
-                
+
                 <!-- NEW CONTAINER: Holds Contour + Tree side by side -->
                 <div class="top-charts-wrapper">
                     <div class="chart-card flex-half">
@@ -148,7 +155,8 @@
                         <div class="chart-container contour-container">
                             <canvas id="contourChart"></canvas>
                         </div>
-                        <p class="chart-caption">Visualizes the relative pitches of the exact matched sequence overlaid from all results.</p>
+                        <p class="chart-caption">Visualizes the relative pitches of the exact matched sequence overlaid
+                            from all results.</p>
                     </div>
 
                     <div class="chart-card flex-half">
@@ -159,7 +167,7 @@
                         <p class="chart-caption">Shows the frequency of interval paths taken by the matched results.</p>
                     </div>
                 </div>
-                
+
                 <div class="top-charts-wrapper">
                     <div class="chart-card flex-half">
                         <h3>Match Position Distribution</h3>
@@ -167,7 +175,7 @@
                             <canvas id="positionChart"></canvas>
                         </div>
                     </div>
-                    
+
                     <div class="chart-card flex-half">
                         <h3>Melody Length Distribution</h3>
                         <div class="chart-container position-container">
@@ -181,9 +189,10 @@
                     <div class="chart-container contour-container">
                         <canvas id="pcaChart"></canvas>
                     </div>
-                    <p class="chart-caption">This scatter plot projects high-dimensional melodic patterns (interval n-grams) into 2D space. Points closer together have more similar interval structures.</p>
+                    <p class="chart-caption">This scatter plot projects high-dimensional melodic patterns (interval
+                        n-grams) into 2D space. Points closer together have more similar interval structures.</p>
                 </div>
-                
+
                 <div class="chart-card pie-card">
                     <h3>Genre Distribution</h3>
                     <div class="meta-charts">
@@ -198,4 +207,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>
