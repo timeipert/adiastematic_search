@@ -295,18 +295,35 @@ window.applyResultFilters = function (isInitial = false) {
 
     let filtered = [...latestResults];
 
-    // 1. Filter
-    if (filterText) {
-        filtered = filtered.filter(item => {
-            const text = (item.initial_text || '').toLowerCase();
-            const genre = (item.genre || '').toLowerCase();
-            const mode = (item.mode || '').toString();
-            const id = (item.uuid || '').toLowerCase();
-            return text.includes(filterText) || genre.includes(filterText) || mode.includes(filterText) || id.includes(filterText);
+    // 1. Metadata Filters
+    const metaFilterRow = document.getElementById('metadata_filters');
+    if (metaFilterRow) {
+        const selects = metaFilterRow.querySelectorAll('select');
+        selects.forEach(sel => {
+            const key = sel.dataset.key;
+            const val = sel.value;
+            if (val !== 'All') {
+                filtered = filtered.filter(item => {
+                    const itemVal = (item[key] || "Unknown").toString();
+                    return itemVal === val;
+                });
+            }
         });
     }
 
-    // 2. Sort
+    // 2. Global Text Filter
+    if (filterText) {
+        filtered = filtered.filter(item => {
+            const fieldsToSearch = [
+                item.initial_text, item.genre, item.subgenre, item.genre2, 
+                item.mode, item.uuid, item.siglum, item.feast_day, 
+                item.feast_time, item.melodyname_standardized, item.editor
+            ];
+            return fieldsToSearch.some(f => (f || "").toString().toLowerCase().includes(filterText));
+        });
+    }
+
+    // 3. Sort
     if (sortBy !== 'none') {
         filtered.sort((a, b) => {
             if (sortBy === 'genre') return (a.genre || '').localeCompare(b.genre || '');
@@ -319,6 +336,60 @@ window.applyResultFilters = function (isInitial = false) {
 
     displayResults(filtered, isInitial);
 };
+
+function updateMetadataFilters(results) {
+    const container = document.getElementById('metadata_filters');
+    if (!container) return;
+    
+    // Remember previous choices if possible? For now, let's just clear.
+    container.innerHTML = '';
+
+    if (!results || results.length === 0) return;
+
+    // Define keys we want to filter by
+    const keys = ['genre', 'subgenre', 'genre2', 'mode', 'feast_day', 'feast_time', 'database_source'];
+    const labels = {
+        'genre': 'Genre',
+        'subgenre': 'Subgenre',
+        'genre2': 'Genre 2',
+        'mode': 'Mode',
+        'feast_day': 'Feast Day',
+        'feast_time': 'Feast Time',
+        'database_source': 'Source'
+    };
+
+    keys.forEach(key => {
+        const values = new Set();
+        results.forEach(item => {
+            if (item[key] !== undefined && item[key] !== null && item[key] !== "") {
+                values.add(item[key]);
+            } else {
+                values.add("Unknown");
+            }
+        });
+
+        if (values.size <= 1) return; // Only show if there's actually a choice
+
+        const select = document.createElement('select');
+        select.className = 'inline-input select-input metadata-filter-select';
+        select.dataset.key = key;
+        select.onchange = () => applyResultFilters();
+
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = 'All';
+        defaultOpt.textContent = `All ${labels[key] || key}`;
+        select.appendChild(defaultOpt);
+
+        Array.from(values).sort().forEach(val => {
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val;
+            select.appendChild(opt);
+        });
+
+        container.appendChild(select);
+    });
+}
 
 function displayResults(results, isInitial = false) {
     const resultsContainer = document.getElementById('results_container');
@@ -364,12 +435,26 @@ function displayResults(results, isInitial = false) {
 
         // Build metadata dynamically
         let metaHtml = '';
-        if (item.uuid) metaHtml += `<div class="meta-item"><span class="meta-label">ID</span><span class="meta-value">${item.uuid}</span></div>`;
-        if (item.siglum) metaHtml += `<div class="meta-item"><span class="meta-label">Siglum</span><span class="meta-value">${item.siglum}</span></div>`;
-        if (item.related_chant) metaHtml += `<div class="meta-item"><span class="meta-label">Cantus ID</span><span class="meta-value">${item.related_chant}</span></div>`;
-        if (item.genre) metaHtml += `<div class="meta-item"><span class="meta-label">Genre</span><span class="meta-value">${item.genre}</span></div>`;
-        if (item.mode) metaHtml += `<div class="meta-item"><span class="meta-label">Mode</span><span class="meta-value">${item.mode}</span></div>`;
-        metaHtml += `<div class="meta-item"><span class="meta-label">Source</span><span class="meta-value">${item.database_source}</span></div>`;
+        const metaFields = [
+            { key: 'uuid', label: 'ID' },
+            { key: 'siglum', label: 'Siglum' },
+            { key: 'related_chant', label: 'Cantus ID' },
+            { key: 'melodyname_standardized', label: 'Melody' },
+            { key: 'genre', label: 'Genre' },
+            { key: 'subgenre', label: 'Subgenre' },
+            { key: 'genre2', label: 'Genre 2' },
+            { key: 'mode', label: 'Mode' },
+            { key: 'feast_day', label: 'Feast' },
+            { key: 'feast_time', label: 'Time' },
+            { key: 'editor', label: 'Editor' },
+            { key: 'database_source', label: 'Source' }
+        ];
+
+        metaFields.forEach(field => {
+            if (item[field.key]) {
+                metaHtml += `<div class="meta-item"><span class="meta-label">${field.label}</span><span class="meta-value">${item[field.key]}</span></div>`;
+            }
+        });
 
         let displayVolpiano = item.volpiano || '';
         if (item.match_indices && displayVolpiano) {
@@ -1109,8 +1194,10 @@ window.performSearch = function() {
                     </small>
                 </div>`;
             viewStatsBtn.classList.add('hidden');
+            updateMetadataFilters([]); // Clear filters
         } else {
             latestResults = results;
+            updateMetadataFilters(latestResults);
             applyResultFilters(true); // first render
             generateStatistics(latestResults);
         }

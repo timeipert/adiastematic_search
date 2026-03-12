@@ -65,7 +65,11 @@ def build_corpus():
     main_corpus["database_source"] = "Main Corpus (Corpus Monodicum)"
     
     # Keep only what we need for the frontend to reduce file size
-    cols_to_keep = ["uuid", "siglum", "related_chant", "genre", "mode", "initial_text", "volpiano", "contour", "database_source"]
+    cols_to_keep = [
+        "uuid", "siglum", "related_chant", "genre", "subgenre", "genre2", 
+        "mode", "feast_day", "feast_time", "initial_text", "melodyname_standardized",
+        "editor", "volpiano", "contour", "database_source"
+    ]
     main_corpus.rename(columns={"source_id": "siglum"}, inplace=True)
     for col in cols_to_keep:
         if col not in main_corpus.columns:
@@ -107,6 +111,10 @@ def build_corpus():
             schlager_corpus["contour"] = schlager_corpus["volpiano"].apply(transform_to_contour)
             schlager_corpus.dropna(subset=["contour"], inplace=True)
             schlager_corpus["database_source"] = "Schlager Melodies"
+            # Standardize columns
+            for col in cols_to_keep:
+                if col not in schlager_corpus.columns:
+                    schlager_corpus[col] = ""
             schlager_corpus = schlager_corpus[cols_to_keep]
         except Exception as e:
             print(f"Error loading schlager_melodies.csv: {e}")

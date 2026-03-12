@@ -710,6 +710,35 @@ input[type="range"]::-moz-range-track {
     display: flex;
     align-items: center;
     gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.metadata-filters-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.metadata-filter-select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: var(--text-muted);
+    padding: 0.2rem 1.8rem 0.2rem 0.6rem !important;
+    font-size: 0.75rem;
+    outline: none;
+    transition: all 0.2s ease;
+    max-width: 150px;
+    height: auto !important;
+}
+
+.metadata-filter-select:hover {
+    border-color: var(--accent);
+}
+
+.metadata-filter-select:focus {
+    border-color: var(--accent);
+    color: white;
 }
 
 .select-input {
