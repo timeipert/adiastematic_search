@@ -1,0 +1,86 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.16.5"
+  },
+  "cells": [
+    {
+      "id": "MJUe",
+      "code_hash": "99dc97e80a1178a8722a716688e587ad",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h2 id=\"adiastematic-search\">Adiastematic Search</h2>\n<span class=\"paragraph\">You can search for melodies in the Corpus Monodicum dataset that constrain to a certain contour.</span>\n<span class=\"paragraph\"><strong>Syntax updates:</strong></span>\n<ul>\n<li><code>u</code> / <code>d</code> / <code>r</code> \u2013 Up, Down, Repeat</li>\n<li><code>_</code> \u2013 Syllable boundary (e.g., <code>_ u d _</code> searches for exactly a two-interval syllable contour)</li>\n<li><code>_ _</code> \u2013 A single note syllable (zero intervals)</li>\n<li><code>[...]</code> \u2013 Skip any amount of unknown notes (mapped to <code>.*</code>)</li>\n<li><code>[u|d]</code> \u2013 Alternative options (mapped to <code>(u|d)</code> in regex)</li>\n<li><code>^</code> / <code>$</code> \u2013 Start / End of the chant</li>\n</ul>\n<span class=\"paragraph\">(Note: Spaces are ignored automatically to allow for readable queries).</span>\n<span class=\"paragraph\">So for example a query could look like:\n<code>_ u d d [...] u d _</code> or <code>[ . | . r | . r r ] u d</code></span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hbol",
+      "code_hash": "cca12a5e292a6b07d6fa3c9a13e3b946",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "67e1c2017b0752e464615b59aaeb81c3",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\"><strong>Adiastematic query:</strong> <marimo-ui-element object-id='vblA-0' random-id='80d8d815-1f98-33a8-e7b7-e1007f76a661'><marimo-text data-initial-value='&quot;uddu&quot;' data-label='null' data-placeholder='&quot;&quot;' data-kind='&quot;text&quot;' data-full-width='true' data-disabled='false' data-debounce='true'></marimo-text></marimo-ui-element> \n<strong>Database:</strong> <marimo-ui-element object-id='vblA-1' random-id='86d99773-9646-3990-7414-62716697027d'><marimo-radio data-initial-value='&quot;Cumulative (Both)&quot;' data-label='&quot;&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Select Corpus Database:&lt;/span&gt;&lt;/span&gt;&quot;' data-options='[&quot;Main Corpus (Corpus Monodicum)&quot;,&quot;Schlager Melodies&quot;,&quot;Cumulative (Both)&quot;]' data-inline='false' data-disabled='false'></marimo-radio></marimo-ui-element>\n<strong>Region Filter:</strong> <marimo-ui-element object-id='vblA-2' random-id='4b775b66-06c1-a685-0169-7a807c80e350'><marimo-radio data-initial-value='&quot;Anywhere in the melody&quot;' data-label='&quot;&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Where should the match occur?&lt;/span&gt;&lt;/span&gt;&quot;' data-options='[&quot;Anywhere in the melody&quot;,&quot;Only in the Beginning (Incipit)&quot;,&quot;Only in the End (Coda)&quot;]' data-inline='false' data-disabled='false'></marimo-radio></marimo-ui-element> <marimo-ui-element object-id='vblA-3' random-id='7148d384-4d63-a2ca-072d-abbad15e80b2'><marimo-slider data-initial-value='25' data-label='&quot;&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Size of Beginning/End search region (%)&lt;/span&gt;&lt;/span&gt;&quot;' data-start='5' data-stop='100' data-step='5' data-steps='[]' data-debounce='false' data-disabled='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-include-input='false' data-full-width='false'></marimo-slider></marimo-ui-element>\n<strong>Options:</strong> <marimo-ui-element object-id='vblA-4' random-id='3f20c14d-0d50-7bae-d0e2-c0291cb01a1a'><marimo-checkbox data-initial-value='true' data-label='&quot;&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Ignore syllables in search&lt;/span&gt;&lt;/span&gt;&quot;' data-disabled='false'></marimo-checkbox></marimo-ui-element>\n<marimo-ui-element object-id='vblA-5' random-id='b878e6f3-04de-05bc-41b7-c727ea399f28'><marimo-button data-initial-value='0' data-label='&quot;&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Search&lt;/span&gt;&lt;/span&gt;&quot;' data-kind='&quot;neutral&quot;' data-disabled='false' data-full-width='false'></marimo-button></marimo-ui-element></span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "68b329da9893e34099c7d8ad5cb9c940",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "35aa068723eaf9f28a2df999bc9ba9a1",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "773c48384328bc3cf2fa93a13a47dc89",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='PKri-0' random-id='c83f01d9-4879-9d60-8a48-748498b90659'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;&#92;&quot;:0,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH001&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--9a--cdc--defe--ddefgfdecdddefgfdecdd---------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH001&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;__u_ud_uud_ruuuddudurruuuddudur_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;uuduudruuuddudurruuuddudur&#92;&quot;,&#92;&quot;match_start&#92;&quot;:9},{&#92;&quot;&#92;&quot;:1,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH002&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--a--ccd--dcdef--edffegfefedfhghgefegfde--------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH002&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;___ru_duuu_durduddudduududdududdu_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;ruduuudurduddudduududdududdu&#92;&quot;,&#92;&quot;match_start&#92;&quot;:10},{&#92;&quot;&#92;&quot;:2,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH002a&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--c--de--edefg--edffegfefedfhghgefegfd---------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH002a&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;___u_duuu_durduddudduududdududd_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;uduuudurduddudduududdududd&#92;&quot;,&#92;&quot;match_start&#92;&quot;:9},{&#92;&quot;&#92;&quot;:3,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH003&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--a--cdcdcdfed--cddegfgfededcedfgfe------------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH003&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;___ududuudd_uruududddudduduudd_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;ududuudduruududddudduduudd&#92;&quot;,&#92;&quot;match_start&#92;&quot;:5},{&#92;&quot;&#92;&quot;:4,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH003a&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--a--cdcdcdfeded--cddegfgfededdcedfgfeded------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH003a&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;___ududuuddud_uruududddudrduduudddud_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;ududuudduduruududddudrduduudddud&#92;&quot;,&#92;&quot;match_start&#92;&quot;:5},{&#92;&quot;&#92;&quot;:5,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH003b&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--a--cdcdcdcdeffedd--cddfgfgfdeddcfeed---------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH003b&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;___udududuuurddr_uruududdudrdudrd_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;udududuuurddruruududdudrdudrd&#92;&quot;,&#92;&quot;match_start&#92;&quot;:18},{&#92;&quot;&#92;&quot;:7,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH005&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--cd--ddca--ceddcd--ddefggfefededcdfghgh-------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH005&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;__u_rdd_udrdu_ruuurdduddudduuuudu_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;urddudrduruuurdduddudduuuudu&#92;&quot;,&#92;&quot;match_start&#92;&quot;:16},{&#92;&quot;&#92;&quot;:8,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH005a&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--ad--ddca--ceddcdddefggfefededcfghgh----------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH005a&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;__u_rdd_udrdurruuurdduddudduuudu_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;urddudrdurruuurdduddudduuudu&#92;&quot;,&#92;&quot;match_start&#92;&quot;:17},{&#92;&quot;&#92;&quot;:10,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH007&#92;&#92;nCantus ID: g01125&#92;&#92;nGenre: Al | Mode: D&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--cd--d--cd--ddefghgdfeddefghgdfedcdefeed------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH007&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;g01125&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;D&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;__u__u_ruuuudduddruuuudduddduuudrd_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;uuruuuudduddruuuudduddduuudrd&#92;&quot;,&#92;&quot;match_start&#92;&quot;:6},{&#92;&quot;&#92;&quot;:11,&#92;&quot;ID&#92;&quot;:&#92;&quot;mSCH007a&#92;&#92;nCantus ID:&#92;&#92;nGenre: Al | Mode:&#92;&quot;,&#92;&quot;volpiano&#92;&quot;:&#92;&quot;1--d--cb--cd--dceghgdfedcfeed-------------------------&#92;&quot;,&#92;&quot;uuid&#92;&quot;:&#92;&quot;mSCH007a&#92;&quot;,&#92;&quot;related_chant&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;genre&#92;&quot;:&#92;&quot;Al&#92;&quot;,&#92;&quot;mode&#92;&quot;:&#92;&quot;&#92;&quot;,&#92;&quot;contour&#92;&quot;:&#92;&quot;___d_u_duuuddudddudrd_&#92;&quot;,&#92;&quot;database_source&#92;&quot;:&#92;&quot;Schlager Melodies&#92;&quot;,&#92;&quot;search_contour&#92;&quot;:&#92;&quot;duduuuddudddudrd&#92;&quot;,&#92;&quot;match_start&#92;&quot;:5}]&quot;' data-total-rows='384' data-total-columns='10' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;ID&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;volpiano&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;uuid&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;related_chant&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;genre&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;mode&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;contour&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;database_source&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;search_contour&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;match_start&quot;,[&quot;integer&quot;,&quot;int64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[[&quot;&quot;,[&quot;integer&quot;,&quot;int64&quot;]]]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    }
+  ]
+}
