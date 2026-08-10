@@ -3,12 +3,142 @@ let corpusData = [];
 
 // DOM Elements
 const queryInput = document.getElementById('query');
-const corpusSelect = document.getElementById('corpus_select');
 const searchLocation = document.getElementById('search_location');
 const regionSize = document.getElementById('region_size');
 const regionVal = document.getElementById('region_val');
 const ignoreSyllables = document.getElementById('ignore_syllables');
-const matchThreshold = document.getElementById('match_threshold'); // Deprecated, but keep for now or remove if confirmed
+const matchThreshold = document.getElementById('match_threshold');
+
+// Multiselect state
+let availableCorpora = []; // Array of { name, count }
+let selectedCorporaSet = new Set();
+
+const corpusMultiselect = document.getElementById('corpus_multiselect');
+const corpusDropdownBtn = document.getElementById('corpus_dropdown_btn');
+const corpusDropdownText = document.getElementById('corpus_dropdown_text');
+const corpusDropdownMenu = document.getElementById('corpus_dropdown_menu');
+const corpusOptionsContainer = document.getElementById('corpus_options_container');
+const selectAllCorporaBtn = document.getElementById('select_all_corpora');
+const deselectAllCorporaBtn = document.getElementById('deselect_all_corpora');
+
+function initCorporaMultiselect(data) {
+    const countsMap = {};
+    for (let i = 0; i < data.length; i++) {
+        const src = (data[i].database_source || 'Unknown').trim();
+        countsMap[src] = (countsMap[src] || 0) + 1;
+    }
+    
+    availableCorpora = Object.keys(countsMap).map(src => ({
+        name: src,
+        count: countsMap[src]
+    }));
+
+    selectedCorporaSet = new Set(availableCorpora.map(c => c.name));
+
+    renderCorporaOptions();
+    updateCorporaBtnText();
+
+    if (corpusDropdownBtn && corpusDropdownMenu) {
+        corpusDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            corpusMultiselect.classList.toggle('open');
+            corpusDropdownMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (corpusMultiselect && !corpusMultiselect.contains(e.target)) {
+                corpusMultiselect.classList.remove('open');
+                corpusDropdownMenu.classList.add('hidden');
+            }
+        });
+
+        selectAllCorporaBtn.addEventListener('click', () => {
+            selectedCorporaSet = new Set(availableCorpora.map(c => c.name));
+            renderCorporaOptions();
+            updateCorporaBtnText();
+        });
+
+        deselectAllCorporaBtn.addEventListener('click', () => {
+            selectedCorporaSet.clear();
+            renderCorporaOptions();
+            updateCorporaBtnText();
+        });
+    }
+}
+
+function renderCorporaOptions() {
+    if (!corpusOptionsContainer) return;
+    corpusOptionsContainer.innerHTML = '';
+    availableCorpora.forEach(corp => {
+        const label = document.createElement('label');
+        label.className = 'multiselect-option';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = selectedCorporaSet.has(corp.name);
+        checkbox.value = corp.name;
+
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                selectedCorporaSet.add(corp.name);
+            } else {
+                selectedCorporaSet.delete(corp.name);
+            }
+            updateCorporaBtnText();
+        });
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = corp.name;
+
+        const badgeSpan = document.createElement('span');
+        badgeSpan.className = 'corpus-badge';
+        badgeSpan.textContent = corp.count;
+
+        label.appendChild(checkbox);
+        label.appendChild(nameSpan);
+        label.appendChild(badgeSpan);
+        corpusOptionsContainer.appendChild(label);
+    });
+}
+
+function updateCorporaBtnText() {
+    if (!corpusDropdownText) return;
+    const total = availableCorpora.length;
+    const selectedCount = selectedCorporaSet.size;
+
+    if (selectedCount === total) {
+        corpusDropdownText.textContent = `All Corpora Selected (${total})`;
+    } else if (selectedCount === 0) {
+        corpusDropdownText.textContent = `No Corpus Selected (0)`;
+    } else if (selectedCount === 1) {
+        const singleName = Array.from(selectedCorporaSet)[0];
+        corpusDropdownText.textContent = singleName;
+    } else {
+        corpusDropdownText.textContent = `${selectedCount} of ${total} Corpora Selected`;
+    }
+}
+
+function getSelectedCorporaArray() {
+    return Array.from(selectedCorporaSet);
+}
+
+function setSelectedCorporaArray(arr) {
+    if (!arr || (Array.isArray(arr) && arr.length === 0)) {
+        selectedCorporaSet = new Set(availableCorpora.map(c => c.name));
+    } else if (typeof arr === 'string') {
+        if (arr === 'Cumulative (Both)' || arr === 'All') {
+            selectedCorporaSet = new Set(availableCorpora.map(c => c.name));
+        } else if (arr.includes(',')) {
+            selectedCorporaSet = new Set(arr.split(',').map(s => s.trim()));
+        } else {
+            selectedCorporaSet = new Set([arr.trim()]);
+        }
+    } else if (Array.isArray(arr)) {
+        selectedCorporaSet = new Set(arr);
+    }
+    renderCorporaOptions();
+    updateCorporaBtnText();
+}
 
 const fuzzySettings = document.getElementById('fuzzy_settings');
 const fuzzyAlgo = document.getElementById('fuzzy_algo');
@@ -98,6 +228,7 @@ async function loadData() {
         resultsContainer.innerHTML = `<div class="empty-state">Loaded ${corpusData.length} melodies. Ready to search.</div>`;
         
         // Initialize other components after data is ready
+        initCorporaMultiselect(corpusData);
         renderSavedQueriesList();
         loadFromUrlParams();
     } catch (error) {
@@ -1008,7 +1139,6 @@ window.performSearch = function() {
         const startTime = performance.now();
         const raw_query = queryInput.value.toLowerCase().trim();
         const processed_pattern = preprocessQuery(raw_query);
-        const corpus_sel = corpusSelect.value;
         const sel_loc = searchLocation.value;
         const r_size = parseInt(regionSize.value);
         const ignore_syl = ignoreSyllables.checked;
@@ -1048,11 +1178,9 @@ window.performSearch = function() {
             const item = corpusData[i];
 
             // Database filter
-            // Database filter - accommodate both exact match and cumulative
-            if (corpus_sel !== "Cumulative (Both)") {
-                // Ensure we handle potential whitespace or slight variations
-                const source = (item.database_source || "").trim();
-                if (source !== corpus_sel) continue;
+            const source = (item.database_source || "").trim();
+            if (selectedCorporaSet.size > 0 && !selectedCorporaSet.has(source)) {
+                continue;
             }
 
             // Generate search contour
@@ -1249,7 +1377,7 @@ window.highlightInMap = function (index) {
 function getSearchState() {
     return {
         query: queryInput.value,
-        corpus: corpusSelect.value,
+        corpus: getSelectedCorporaArray(),
         location: searchLocation.value,
         mode: searchMode,
         region: regionSize.value,
@@ -1262,7 +1390,9 @@ function getSearchState() {
 function setSearchState(state) {
     if (!state) return;
     queryInput.value = state.query || '';
-    corpusSelect.value = state.corpus || 'Cumulative (Both)';
+    if (state.corpus !== undefined) {
+        setSelectedCorporaArray(state.corpus);
+    }
     searchLocation.value = state.location || 'Anywhere in the melody';
     setSearchMode(state.mode || 'exact');
     regionSize.value = state.region || 25;
@@ -1333,7 +1463,13 @@ function renderSavedQueriesList() {
 window.copyShareLink = function () {
     const state = getSearchState();
     const params = new URLSearchParams();
-    Object.keys(state).forEach(key => params.set(key, state[key]));
+    Object.keys(state).forEach(key => {
+        if (Array.isArray(state[key])) {
+            params.set(key, state[key].join(','));
+        } else {
+            params.set(key, state[key]);
+        }
+    });
 
     const url = window.location.origin + window.location.pathname + '?' + params.toString();
     navigator.clipboard.writeText(url).then(() => {
@@ -1344,9 +1480,13 @@ window.copyShareLink = function () {
 function loadFromUrlParams() {
     const params = new URLSearchParams(window.location.search);
     if (params.has('query')) {
+        let corpusVal = params.get('corpus');
+        if (corpusVal && corpusVal.includes(',')) {
+            corpusVal = corpusVal.split(',');
+        }
         const state = {
             query: params.get('query'),
-            corpus: params.get('corpus'),
+            corpus: corpusVal,
             location: params.get('location'),
             mode: params.get('mode'),
             region: params.get('region'),
@@ -1355,7 +1495,7 @@ function loadFromUrlParams() {
             ignoreSyllables: params.get('ignoreSyllables') === 'true'
         };
         setSearchState(state);
-        setTimeout(performSearch, 500); // Wait for data to be ready
+        setTimeout(performSearch, 500);
     }
 }
 

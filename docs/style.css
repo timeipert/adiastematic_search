@@ -827,3 +827,138 @@ input[type="range"]::-moz-range-track {
     0% { background: rgba(94, 114, 228, 0.3); }
     100% { background: rgba(11, 16, 30, 0.6); }
 }
+
+/* Custom Multiselect Component */
+.custom-multiselect-group {
+    position: relative;
+}
+
+.custom-multiselect {
+    position: relative;
+    width: 100%;
+}
+
+.multiselect-btn {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(11, 16, 30, 0.6);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.multiselect-btn:hover {
+    border-color: var(--accent);
+    background: rgba(11, 16, 30, 0.8);
+}
+
+.multiselect-btn .arrow {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+
+.custom-multiselect.open .multiselect-btn .arrow {
+    transform: rotate(180deg);
+}
+
+.multiselect-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(20, 26, 45, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 0.75rem;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    max-height: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.multiselect-menu.hidden {
+    display: none;
+}
+
+.multiselect-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.multiselect-actions .btn-text {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 0.15s ease;
+}
+
+.multiselect-actions .btn-text:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+.multiselect-actions .sep {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    opacity: 0.5;
+}
+
+.multiselect-options {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-height: 200px;
+}
+
+.multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    transition: background 0.15s ease;
+}
+
+.multiselect-option:hover {
+    background: rgba(94, 114, 228, 0.15);
+}
+
+.multiselect-option input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.multiselect-option .corpus-badge {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
