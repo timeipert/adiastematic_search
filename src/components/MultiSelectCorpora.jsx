@@ -19,13 +19,13 @@ export default function MultiSelectCorpora({ availableCorpora, selectedCorpora, 
 
   let btnText = '';
   if (selectedCount === total && total > 0) {
-    btnText = `All Corpora Selected (${total})`;
+    btnText = `All Corpora (${total})`;
   } else if (selectedCount === 0) {
-    btnText = `No Corpus Selected (0)`;
+    btnText = `None selected (0)`;
   } else if (selectedCount === 1) {
     btnText = selectedCorpora[0];
   } else {
-    btnText = `${selectedCount} of ${total} Corpora Selected`;
+    btnText = `${selectedCount} / ${total} Corpora`;
   }
 
   const handleToggle = (name) => {
@@ -46,7 +46,7 @@ export default function MultiSelectCorpora({ availableCorpora, selectedCorpora, 
 
   return (
     <div className="input-group custom-multiselect-group" ref={containerRef}>
-      <label>Select Corpora:</label>
+      <label>Corpora</label>
       <div className={`custom-multiselect ${isOpen ? 'open' : ''}`}>
         <button
           type="button"

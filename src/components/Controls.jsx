@@ -98,18 +98,18 @@ export default function Controls({
       <div className="search-meta">
         <div className="syntax-legend">
           <span className="meta-label">Syntax</span>
-          <span className="tag-pill">* = Start Note</span>
-          <span className="tag-pill">u = Up</span>
-          <span className="tag-pill">d = Down</span>
-          <span className="tag-pill">r = Repeat</span>
-          <span className="tag-pill">␣ = Neume</span>
-          <span className="tag-pill">___ = Syllable</span>
-          <span className="tag-pill">. = Any Note</span>
-          <span className="tag-pill">[…] = Skip</span>
+          <span className="tag-pill">* Start</span>
+          <span className="tag-pill">u Up</span>
+          <span className="tag-pill">d Down</span>
+          <span className="tag-pill">r Repeat</span>
+          <span className="tag-pill">␣ Neume</span>
+          <span className="tag-pill">___ Syllable</span>
+          <span className="tag-pill">. Note</span>
+          <span className="tag-pill">[…] Gap</span>
         </div>
 
         {searchMode === 'exact' && validation.compiledRegex && query.trim() && (
-          <div className="compiled-regex-badge" title="Compiled JavaScript regular expression">
+          <div className="compiled-regex-badge" title="Compiled regular expression">
             <span className="meta-label">Regex</span>
             <code>{validation.compiledRegex}</code>
           </div>
@@ -123,7 +123,7 @@ export default function Controls({
                 key={idx}
                 className="tag-pill tag-pill-btn"
                 onClick={() => onSelectHistory(histQuery)}
-                title="Click to search again"
+                title="Search again"
               >
                 {histQuery}
               </button>
@@ -132,7 +132,7 @@ export default function Controls({
         )}
       </div>
 
-      {/* Advanced options */}
+      {/* Search options */}
       <details className="options" open>
         <summary className="options-summary">
           <span>Search options</span>
@@ -172,24 +172,28 @@ export default function Controls({
                 value={searchLocation}
                 onChange={(e) => setSearchLocation(e.target.value)}
               >
-                <option value="Anywhere in the melody">Anywhere in the melody</option>
-                <option value="Only in the Beginning (Incipit)">In the beginning (incipit)</option>
-                <option value="Only in the End (Coda)">In the end (coda)</option>
+                <option value="Anywhere in the melody">Anywhere in melody</option>
+                <option value="Only in the Beginning (Incipit)">Beginning (Incipit)</option>
+                <option value="Only in the End (Coda)">End (Coda)</option>
               </select>
             </div>
 
-            <div className="input-group slider-group">
-              <label htmlFor="region_size">Region size ({regionSize}%)</label>
-              <input
-                type="range"
-                id="region_size"
-                min="5"
-                max="100"
-                step="5"
-                value={regionSize}
-                onChange={(e) => setRegionSize(parseInt(e.target.value))}
-              />
-            </div>
+            {searchLocation !== "Anywhere in the melody" && (
+              <div className="input-group slider-group">
+                <label htmlFor="region_size">
+                  {searchLocation === "Only in the Beginning (Incipit)" ? "Incipit range" : "Coda range"} ({regionSize}%)
+                </label>
+                <input
+                  type="range"
+                  id="region_size"
+                  min="5"
+                  max="100"
+                  step="5"
+                  value={regionSize}
+                  onChange={(e) => setRegionSize(parseInt(e.target.value))}
+                />
+              </div>
+            )}
           </div>
 
           <FuzzySettings

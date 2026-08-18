@@ -1,5 +1,33 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { getSearchDiagnostics } from '../utils/searchEngine';
+import WildcardBreakdown from './WildcardBreakdown';
+
+function ScrollableCell({ children, className, title, emptyPlaceholder = '-' }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const mark = containerRef.current.querySelector('mark');
+      if (mark) {
+        const containerWidth = containerRef.current.clientWidth;
+        const markOffsetLeft = mark.offsetLeft;
+        const markWidth = mark.offsetWidth;
+        const targetScrollLeft = Math.max(0, markOffsetLeft - (containerWidth / 2) + (markWidth / 2));
+        containerRef.current.scrollLeft = targetScrollLeft;
+      } else {
+        containerRef.current.scrollLeft = 0;
+      }
+    }
+  }, [children]);
+
+  if (!children) return <span className="cell-muted">{emptyPlaceholder}</span>;
+
+  return (
+    <div ref={containerRef} className={className} title={title}>
+      {children}
+    </div>
+  );
+}
 
 export default function ResultsTable({
   results,
@@ -16,6 +44,7 @@ export default function ResultsTable({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [expandedRow, setExpandedRow] = useState(null);
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
 
   const diagnostics = useMemo(() => {
     if (isLoading || (results && results.length > 0)) return null;
@@ -117,9 +146,9 @@ export default function ResultsTable({
   };
 
   const renderContourHighlight = (contour, matchIndices) => {
-    if (!contour) return '-';
+    if (!contour) return null;
     if (!matchIndices || matchIndices.start < 0 || matchIndices.end > contour.length) {
-      return contour;
+      return <span>{contour}</span>;
     }
     const before = contour.substring(0, matchIndices.start);
     const match = contour.substring(matchIndices.start, matchIndices.end);
@@ -135,9 +164,9 @@ export default function ResultsTable({
   };
 
   const renderVolpianoHighlight = (volpiano, vMatchIndices) => {
-    if (!volpiano) return '-';
+    if (!volpiano) return null;
     if (!vMatchIndices || vMatchIndices.start < 0 || vMatchIndices.end > volpiano.length) {
-      return volpiano;
+      return <span>{volpiano}</span>;
     }
     const before = volpiano.substring(0, vMatchIndices.start);
     const match = volpiano.substring(vMatchIndices.start, vMatchIndices.end);
@@ -154,7 +183,7 @@ export default function ResultsTable({
 
   return (
     <section className="results glass-panel">
-      {/* Sleek Results Controls Header */}
+      {/* Results Header */}
       <header className="results-header">
         <div className="header-left">
           <h2>
@@ -164,17 +193,17 @@ export default function ResultsTable({
         </div>
 
         <div className="results-controls">
-          {/* Quick Search in Results */}
+          {/* Quick Filter */}
           <input
             type="text"
             className="inline-input"
-            style={{ minWidth: '200px' }}
+            style={{ minWidth: '180px' }}
             placeholder="🔎 Filter results..."
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
           />
 
-          {/* Sort By Select */}
+          {/* Sort Select */}
           <select
             className="inline-input select-input"
             value={sortBy}
@@ -183,33 +212,45 @@ export default function ResultsTable({
               setSortOrder('asc');
             }}
           >
-            <option value="relevance">Sort By: Relevance</option>
-            <option value="title">Sort By: Title (A-Z)</option>
-            <option value="source">Sort By: Corpus Source</option>
-            <option value="position">Sort By: Match Position</option>
+            <option value="relevance">Sort: Relevance</option>
+            <option value="title">Sort: Title (A-Z)</option>
+            <option value="source">Sort: Corpus Source</option>
+            <option value="position">Sort: Match Position</option>
           </select>
 
           {results && results.length > 0 && (
             <button className="secondary-btn" onClick={onOpenStats}>
-              📊 Statistics
+              📊 Stats
             </button>
           )}
         </div>
       </header>
 
+      {/* Mini-Diagrams for Wildcard searches (e.g. '.', '{3,5}', '[u|d]') */}
+      {results && results.length > 0 && (
+        <WildcardBreakdown
+          results={results}
+          query={searchState?.query}
+          filterText={filterText}
+          onSelectPatternFilter={setFilterText}
+          isOpen={isBreakdownOpen}
+          onToggle={() => setIsBreakdownOpen(!isBreakdownOpen)}
+        />
+      )}
+
       {/* Top Pagination Bar */}
       {filteredResults.length > 0 && (
         <div className="pagination-bar" style={{ marginBottom: '1rem', marginTop: 0 }}>
           <div className="pagination-info">
-            Showing {pageSize === 0 ? 1 : (page - 1) * pageSize + 1} to{' '}
+            Showing {pageSize === 0 ? 1 : (page - 1) * pageSize + 1}–
             {pageSize === 0 ? filteredResults.length : Math.min(filteredResults.length, page * pageSize)} of {filteredResults.length} melodies
           </div>
 
           <div className="pagination-controls">
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Page Size:</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Show:</label>
             <select
               className="inline-input"
-              style={{ width: '80px', padding: '0.2rem 0.4rem' }}
+              style={{ width: '75px', padding: '0.2rem 0.4rem' }}
               value={pageSize}
               onChange={(e) => {
                 setPageSize(parseInt(e.target.value));
@@ -233,7 +274,7 @@ export default function ResultsTable({
                   ◀ Prev
                 </button>
                 <span className="page-indicator">
-                  Page {page} of {totalPages}
+                  Page {page} / {totalPages}
                 </span>
                 <button
                   className="secondary-btn"
@@ -248,25 +289,25 @@ export default function ResultsTable({
         </div>
       )}
 
-      {/* Large Results Table */}
+      {/* Results Table */}
       <div className="table-responsive">
         <table className="results-table">
           <thead>
             <tr>
               <th style={{ width: '40px' }}>#</th>
-              <th style={{ minWidth: '340px' }}>Volpiano Melody (Match Highlighted)</th>
-              <th style={{ minWidth: '200px' }}>Contour Match</th>
-              <th onClick={() => handleSortHeader('title')} className="sortable-col" style={{ minWidth: '200px' }}>
-                Title / Incipit {sortBy === 'title' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+              <th style={{ minWidth: '320px' }}>Volpiano (Scrollable)</th>
+              <th style={{ minWidth: '220px' }}>Contour (Scrollable)</th>
+              <th onClick={() => handleSortHeader('title')} className="sortable-col" style={{ minWidth: '180px' }}>
+                Title {sortBy === 'title' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
               <th onClick={() => handleSortHeader('source')} className="sortable-col">
-                Corpus Source {sortBy === 'source' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                Source {sortBy === 'source' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
               <th>Genre / Mode</th>
               <th onClick={() => handleSortHeader('position')} className="sortable-col">
                 Position {sortBy === 'position' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
               </th>
-              <th style={{ width: '60px' }}>Details</th>
+              <th style={{ width: '50px' }}></th>
             </tr>
           </thead>
           <tbody>
@@ -279,22 +320,30 @@ export default function ResultsTable({
                     <tr className={`table-row ${isExpanded ? 'row-expanded' : ''}`}>
                       <td className="cell-num">{globalIdx}</td>
 
-                      {/* 1st Main Column: Volpiano Notation with Highlight */}
+                      {/* 1st Main Column: Volpiano Notation with Highlight and Auto-Centering Scroll */}
                       <td className="cell-volpiano">
-                        <div className="volpiano-cell" title={item.volpiano}>
-                          {renderVolpianoHighlight(item.volpiano, item.volpianoMatchIndices)}
-                        </div>
+                        {item.volpiano ? (
+                          <ScrollableCell className="volpiano-cell" title={item.volpiano}>
+                            {renderVolpianoHighlight(item.volpiano, item.volpianoMatchIndices)}
+                          </ScrollableCell>
+                        ) : (
+                          <span className="adiastematic-badge" title="Adiastematic transcription (unpitched notation)">
+                            Adiastematic
+                          </span>
+                        )}
                       </td>
 
-                      {/* 2nd Main Column: Contour String with Highlight */}
-                      <td className="cell-contour" title={item.contour}>
-                        {renderContourHighlight(item.contour, item.matchIndices)}
+                      {/* 2nd Main Column: Contour String with Highlight and Auto-Centering Scroll */}
+                      <td className="cell-contour">
+                        <ScrollableCell className="contour-cell" title={item.contour}>
+                          {renderContourHighlight(item.contour, item.matchIndices)}
+                        </ScrollableCell>
                       </td>
 
-                      {/* Title & Siglum/Page */}
+                      {/* Title & Siglum */}
                       <td className="cell-title">
                         <strong>{item.initial_text || item.melodyname_standardized || item.uuid || 'Melody'}</strong>
-                        {item.siglum && <div className="cell-muted" style={{ fontSize: '0.8rem' }}>Siglum: {item.siglum}</div>}
+                        {item.siglum && <div className="cell-muted" style={{ fontSize: '0.8rem' }}>{item.siglum}</div>}
                       </td>
 
                       {/* Corpus Source */}
@@ -309,7 +358,7 @@ export default function ResultsTable({
                         {!item.genre && !item.mode && '-'}
                       </td>
 
-                      {/* Match Position */}
+                      {/* Match Position / Score */}
                       <td>
                         {item.matchPositionPct !== undefined ? (
                           <span className="pos-badge">{item.matchPositionPct}%</span>
@@ -323,6 +372,7 @@ export default function ResultsTable({
                         <button
                           className="btn-icon-tiny"
                           onClick={() => setExpandedRow(isExpanded ? null : item.uuid || globalIdx)}
+                          title="Toggle details"
                         >
                           {isExpanded ? '▲' : '▼'}
                         </button>
@@ -335,17 +385,25 @@ export default function ResultsTable({
                         <td colSpan="8">
                           <div className="expanded-detail-content">
                             <div><strong>UUID:</strong> {item.uuid || '-'}</div>
-                            <div><strong>Standardized Name:</strong> {item.melodyname_standardized || '-'}</div>
-                            <div><strong>Manuscript Siglum:</strong> {item.siglum || '-'}</div>
-                            <div><strong>Editor / Notes:</strong> {item.editor || '-'}</div>
-                            <div><strong>Feast Day / Time:</strong> {item.feast_day || '-'} {item.feast_time || ''}</div>
-                            <div><strong>Related Chant:</strong> {item.related_chant || '-'}</div>
+                            <div><strong>Title:</strong> {item.initial_text || item.melodyname_standardized || '-'}</div>
+                            <div><strong>Siglum:</strong> {item.siglum || '-'}</div>
+                            <div><strong>Editor:</strong> {item.editor || '-'}</div>
+                            <div><strong>Feast:</strong> {item.feast_day || '-'} {item.feast_time || ''}</div>
+                            <div><strong>Related:</strong> {item.related_chant || '-'}</div>
                             <div style={{ gridColumn: '1 / -1' }}>
-                              <strong>Full Volpiano Notation:</strong>
-                              <div className="volpiano-display" style={{ marginTop: '0.4rem' }}>
-                                {renderVolpianoHighlight(item.volpiano, item.volpianoMatchIndices)}
+                              <strong>Full Contour:</strong>
+                              <div className="contour-cell" style={{ marginTop: '0.4rem', padding: '0.6rem' }}>
+                                {renderContourHighlight(item.contour, item.matchIndices)}
                               </div>
                             </div>
+                            {item.volpiano && (
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <strong>Full Volpiano:</strong>
+                                <div className="volpiano-display" style={{ marginTop: '0.4rem' }}>
+                                  {renderVolpianoHighlight(item.volpiano, item.volpianoMatchIndices)}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -363,7 +421,7 @@ export default function ResultsTable({
                     </div>
                   ) : filterText.trim() ? (
                     <div className="empty-state-box">
-                      <p>No results match your active filter <strong>"{filterText}"</strong>.</p>
+                      <p>No results match filter <strong>"{filterText}"</strong>.</p>
                       <button className="secondary-btn" onClick={() => setFilterText('')}>
                         Clear Filter
                       </button>
@@ -372,21 +430,21 @@ export default function ResultsTable({
                     <div className="empty-state-diagnostic">
                       <div className="diagnostic-header">
                         <span className="diagnostic-icon" aria-hidden="true">🔍</span>
-                        <h3>No melodies matched your query {searchState?.query ? `"${searchState.query}"` : ''}</h3>
+                        <h3>No melodies found {searchState?.query ? `for "${searchState.query}"` : ''}</h3>
                       </div>
 
                       {results?.regexError && (
                         <div className="compiler-alert compiler-error" style={{ margin: '1rem 0', textAlign: 'left' }}>
                           <span className="compiler-icon" aria-hidden="true">⚠️</span>
                           <div className="compiler-body">
-                            <strong>Regex Compilation Failed:</strong> {results.regexError.message}
+                            <strong>Regex error:</strong> {results.regexError.message}
                           </div>
                         </div>
                       )}
 
                       {diagnostics && diagnostics.length > 0 && (
                         <div className="diagnostic-advisor-panel">
-                          <div className="advisor-title">💡 Diagnostic Suggestions & 1-Click Remedies:</div>
+                          <div className="advisor-title">💡 Diagnostic suggestions & quick fixes:</div>
                           <div className="diagnostic-cards-grid">
                             {diagnostics.map((diag, dIdx) => (
                               <div key={dIdx} className={`diagnostic-card ${diag.type}`}>
@@ -421,7 +479,7 @@ export default function ResultsTable({
       {filteredResults.length > 0 && (
         <div className="pagination-bar">
           <div className="pagination-info">
-            Showing {pageSize === 0 ? 1 : (page - 1) * pageSize + 1} to{' '}
+            Showing {pageSize === 0 ? 1 : (page - 1) * pageSize + 1}–
             {pageSize === 0 ? filteredResults.length : Math.min(filteredResults.length, page * pageSize)} of {filteredResults.length} melodies
           </div>
 
@@ -436,7 +494,7 @@ export default function ResultsTable({
                   ◀ Prev
                 </button>
                 <span className="page-indicator">
-                  Page {page} of {totalPages}
+                  Page {page} / {totalPages}
                 </span>
                 <button
                   className="secondary-btn"

@@ -9,8 +9,8 @@ export function preprocessQuery(q, ignoreSyllables = true) {
     // Neume spaces should never affect search, remove whitespace
     query = query.replace(/\s+/g, '');
   }
-  // In regex, '.' matches any single note, never syllable boundaries ('_') or spaces
-  query = query.replace(/(^|[^\\])\./g, '$1[^\\s_]');
+  // In regex, '.' matches any relative pitch step (u, d, r) and NEVER the start note '*' or syllable boundary
+  query = query.replace(/(^|[^\\])\./g, '$1[udr]');
   // Escape literal * when at start of string or preceded by group/alternation/boundary so regex doesn't crash on /*/
   query = query.replace(/(^|[\s|(^])\*/g, '$1\\*');
   return query;
@@ -384,12 +384,12 @@ export function parseContourToUnits(contourStr) {
         let hasWildcard = false;
         for (const c of chars) {
           if (c === '.' || c.includes('.')) hasWildcard = true;
-          else for (const note of c) if ('*udr'.includes(note.toLowerCase())) set.add(note.toLowerCase());
+          else for (const note of c) if ('udr'.includes(note.toLowerCase())) set.add(note.toLowerCase());
         }
         units.push({
           type: 'note',
           raw: s.substring(i, end + 1),
-          allowed: hasWildcard ? new Set(['*', 'u', 'd', 'r']) : set,
+          allowed: hasWildcard ? new Set(['u', 'd', 'r']) : set,
           isWildcard: hasWildcard,
           start: i,
           end: end + 1
@@ -402,7 +402,7 @@ export function parseContourToUnits(contourStr) {
       units.push({
         type: 'note',
         raw: '.',
-        allowed: new Set(['*', 'u', 'd', 'r']),
+        allowed: new Set(['u', 'd', 'r']),
         isWildcard: true,
         start: i,
         end: i + 1
@@ -454,11 +454,11 @@ export function parseQueryToUnits(queryStr) {
         let hasWildcard = false;
         for (const c of chars) {
           if (c === '.' || c.includes('.')) hasWildcard = true;
-          else for (const note of c) if ('*udr'.includes(note.toLowerCase())) set.add(note.toLowerCase());
+          else for (const note of c) if ('udr'.includes(note.toLowerCase())) set.add(note.toLowerCase());
         }
         units.push({
           type: 'note',
-          allowed: hasWildcard ? new Set(['*', 'u', 'd', 'r']) : set,
+          allowed: hasWildcard ? new Set(['u', 'd', 'r']) : set,
           isWildcard: hasWildcard
         });
         i = end + 1;
@@ -471,7 +471,7 @@ export function parseQueryToUnits(queryStr) {
         let inside = q.substring(i + 1, end).trim();
         let chars = inside.split('|').map((c) => c.trim());
         let set = new Set();
-        for (const c of chars) for (const note of c) if ('*udr'.includes(note.toLowerCase())) set.add(note.toLowerCase());
+        for (const c of chars) for (const note of c) if ('udr'.includes(note.toLowerCase())) set.add(note.toLowerCase());
         units.push({ type: 'note', allowed: set, isWildcard: false });
         i = end + 1;
         continue;
@@ -483,13 +483,13 @@ export function parseQueryToUnits(queryStr) {
         if (closeBrace !== -1) {
           let count = parseInt(q.substring(i + 2, closeBrace));
           for (let k = 0; k < count; k++) {
-            units.push({ type: 'note', allowed: new Set(['*', 'u', 'd', 'r']), isWildcard: true });
+            units.push({ type: 'note', allowed: new Set(['u', 'd', 'r']), isWildcard: true });
           }
           i = closeBrace + 1;
           continue;
         }
       }
-      units.push({ type: 'note', allowed: new Set(['*', 'u', 'd', 'r']), isWildcard: true });
+      units.push({ type: 'note', allowed: new Set(['u', 'd', 'r']), isWildcard: true });
       i++;
       continue;
     }
@@ -521,13 +521,12 @@ export function matchUncertainContour(queryUnits, origContour, ignoreSyllables, 
   const queryNotes = ignoreSyllables ? queryUnits.filter((u) => u.type === 'note') : queryUnits;
 
   if (queryNotes.length === 0 || targetNotes.length === 0) return null;
-  if (!isFuzzy && queryNotes.length > targetNotes.length) return null;
 
   const totalLen = Math.max(1, targetNotes.length);
   let bestAccuracy = 0;
   let bestResult = null;
 
-  const maxStart = isFuzzy ? targetNotes.length : targetNotes.length - queryNotes.length;
+  const maxStart = targetNotes.length;
 
   for (let sIdx = 0; sIdx <= maxStart; sIdx++) {
     const match_start_pct = (sIdx / totalLen) * 100;
@@ -535,39 +534,37 @@ export function matchUncertainContour(queryUnits, origContour, ignoreSyllables, 
 
     if (match_start_pct < start_pct || match_end_pct > end_pct) continue;
 
-    let matchCount = 0;
+    if (!isFuzzy) {
+      // In EXACT mode, every note in queryNotes must match consecutively at sIdx + k
+      if (sIdx + queryNotes.length > targetNotes.length) continue;
 
-    for (let k = 0; k < queryNotes.length; k++) {
-      if (sIdx + k >= targetNotes.length) break;
-      const q = queryNotes[k];
-      const t = targetNotes[sIdx + k];
+      let exactMatch = true;
+      for (let k = 0; k < queryNotes.length; k++) {
+        const q = queryNotes[k];
+        const t = targetNotes[sIdx + k];
 
-      if (q.type !== t.type) continue;
-      if (q.type === 'syllable') {
-        matchCount++;
-        continue;
-      }
-      if (q.isWildcard || t.isWildcard) {
-        matchCount++;
-        continue;
-      }
+        if (q.type !== t.type) {
+          exactMatch = false;
+          break;
+        }
+        if (q.type === 'syllable') {
+          continue;
+        }
 
-      let intersects = false;
-      for (const note of q.allowed) {
-        if (t.allowed.has(note)) {
-          intersects = true;
+        let intersects = false;
+        for (const note of q.allowed) {
+          if (t.allowed.has(note)) {
+            intersects = true;
+            break;
+          }
+        }
+        if (!intersects) {
+          exactMatch = false;
           break;
         }
       }
-      if (intersects) {
-        matchCount++;
-      }
-    }
 
-    const accuracy = Math.round((matchCount / Math.max(1, queryNotes.length)) * 100);
-
-    if (!isFuzzy) {
-      if (accuracy === 100) {
+      if (exactMatch) {
         const startUnit = targetNotes[sIdx];
         const endUnit = targetNotes[sIdx + queryNotes.length - 1];
         return {
@@ -578,6 +575,32 @@ export function matchUncertainContour(queryUnits, origContour, ignoreSyllables, 
         };
       }
     } else {
+      // In FUZZY mode
+      let matchCount = 0;
+      for (let k = 0; k < queryNotes.length; k++) {
+        if (sIdx + k >= targetNotes.length) break;
+        const q = queryNotes[k];
+        const t = targetNotes[sIdx + k];
+
+        if (q.type !== t.type) continue;
+        if (q.type === 'syllable') {
+          matchCount++;
+          continue;
+        }
+
+        let intersects = false;
+        for (const note of q.allowed) {
+          if (t.allowed.has(note)) {
+            intersects = true;
+            break;
+          }
+        }
+        if (intersects) {
+          matchCount++;
+        }
+      }
+
+      const accuracy = Math.round((matchCount / Math.max(1, queryNotes.length)) * 100);
       if (accuracy >= fuzzyThreshold && accuracy > bestAccuracy) {
         bestAccuracy = accuracy;
         const startUnit = targetNotes[sIdx];
