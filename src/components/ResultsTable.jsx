@@ -226,11 +226,14 @@ export default function ResultsTable({
         </div>
       </header>
 
-      {/* Mini-Diagrams for Wildcard searches (e.g. '.', '{3,5}', '[u|d]') */}
+      {/* Mini-Diagrams for Wildcard & Fuzzy searches */}
       {results && results.length > 0 && (
         <WildcardBreakdown
           results={results}
           query={searchState?.query}
+          searchMode={searchState?.searchMode}
+          fuzzyAlgo={searchState?.fuzzyAlgo}
+          fuzzyThreshold={searchState?.fuzzyThreshold}
           filterText={filterText}
           onSelectPatternFilter={setFilterText}
           isOpen={isBreakdownOpen}

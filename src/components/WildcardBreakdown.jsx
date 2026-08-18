@@ -24,9 +24,27 @@ const VOLPIANO_PITCHES_ORDER = [
   { key: 's', name: 'b', octave: 4, label: 'b\'' }
 ];
 
+const ALGO_SUMMARIES = {
+  hamming: {
+    title: 'Hamming Substitutions',
+    desc: 'Fixed-length matching. Allows direction mutations at any step without insertions.'
+  },
+  levenshtein: {
+    title: 'Levenshtein Edit Distance',
+    desc: 'Flexible alignment. Allows note insertions, deletions, and direction substitutions.'
+  },
+  subsequence: {
+    title: 'Subsequence Embellishments',
+    desc: 'Finds motif notes in sequence with arbitrary decorative filler notes in-between.'
+  }
+};
+
 export default function WildcardBreakdown({
   results,
   query,
+  searchMode = 'exact',
+  fuzzyAlgo = 'hamming',
+  fuzzyThreshold = 80,
   filterText,
   onSelectPatternFilter,
   isOpen,
@@ -39,16 +57,30 @@ export default function WildcardBreakdown({
 
     const qClean = query.replace(/^\*/, '');
     const hasWildcards = /[.\[\]{}?+*|]/.test(qClean);
-    if (!hasWildcards) return null;
+    const isFuzzy = searchMode === 'fuzzy';
+
+    // Show breakdown if search has wildcards OR is in fuzzy mode
+    if (!hasWildcards && !isFuzzy) return null;
 
     const patternCounts = {};
-    const positionStats = []; // [{ pos: 1, u: 0, d: 0, r: 0, total: 0 }, ...]
-    const stepPitchCounts = []; // [ { 'c': 12, 'd': 45, ... }, ... ]
+    const positionStats = [];
+    const stepPitchCounts = [];
     const lengthCounts = {};
+    const scoreBuckets = { '100%': 0, '90-99%': 0, '80-89%': 0, '70-79%': 0, '<70%': 0 };
     let totalPitches = 0;
     let maxPatternLen = 0;
 
     for (const r of results) {
+      // Score distribution for fuzzy mode
+      if (isFuzzy && r.accuracy !== undefined) {
+        const acc = r.accuracy;
+        if (acc === 100) scoreBuckets['100%']++;
+        else if (acc >= 90) scoreBuckets['90-99%']++;
+        else if (acc >= 80) scoreBuckets['80-89%']++;
+        else if (acc >= 70) scoreBuckets['70-79%']++;
+        else scoreBuckets['<70%']++;
+      }
+
       if (r.matchIndices && r.contour) {
         const raw = r.contour.substring(r.matchIndices.start, r.matchIndices.end);
         const clean = raw.replace(/[^udr*]/gi, '').toLowerCase();
@@ -106,7 +138,19 @@ export default function WildcardBreakdown({
 
     const maxLengthCount = Math.max(1, ...lengthStats.map((l) => l.count));
 
+    // Score stats for fuzzy
+    const scoreStats = Object.entries(scoreBuckets)
+      .filter(([_, count]) => count > 0)
+      .map(([range, count]) => ({
+        range,
+        count,
+        pct: Math.round((count / results.length) * 100)
+      }));
+    const maxScoreCount = Math.max(1, ...scoreStats.map((s) => s.count));
+
     return {
+      isFuzzy,
+      fuzzyAlgo,
       totalResults: results.length,
       uniqueCount: sortedPatterns.length,
       patterns: sortedPatterns.slice(0, 8),
@@ -115,9 +159,11 @@ export default function WildcardBreakdown({
       lengthStats,
       maxLengthCount,
       hasVariableLength: lengthStats.length > 1,
+      scoreStats,
+      maxScoreCount,
       positionStats: positionStats.slice(0, Math.min(8, maxPatternLen))
     };
-  }, [results, query]);
+  }, [results, query, searchMode, fuzzyAlgo]);
 
   // Active step pitch histogram calculation
   const currentStepPitchData = useMemo(() => {
@@ -148,13 +194,17 @@ export default function WildcardBreakdown({
 
   if (!analysis) return null;
 
+  const algoInfo = ALGO_SUMMARIES[fuzzyAlgo] || ALGO_SUMMARIES.hamming;
+
   return (
     <div className="wildcard-breakdown-compact">
       <div className="wildcard-compact-header">
         <div className="wildcard-compact-title">
-          <span className="mini-badge">Pattern Distributions</span>
+          <span className="mini-badge">
+            {analysis.isFuzzy ? `Fuzzy: ${algoInfo.title}` : 'Pattern Distribution'}
+          </span>
           <span className="compact-meta">
-            {analysis.uniqueCount} motifs · {analysis.totalResults} melodies
+            {analysis.uniqueCount} variants · {analysis.totalResults} melodies
             {analysis.hasVariableLength
               ? ` · lengths ${analysis.lengthStats[0]?.len}–${analysis.lengthStats[analysis.lengthStats.length - 1]?.len} notes`
               : ` · ${analysis.lengthStats[0]?.len || ''} notes`}
@@ -218,8 +268,35 @@ export default function WildcardBreakdown({
             </div>
           )}
 
-          {/* 2. Match Length Histogram */}
-          {analysis.hasVariableLength ? (
+          {/* 2. Fuzzy Score Histogram (for Fuzzy mode) OR Length Histogram */}
+          {analysis.isFuzzy && analysis.scoreStats.length > 0 ? (
+            <div className="compact-card score-card">
+              <div className="card-header-mini">
+                <strong>Similarity Scores</strong>
+                <span className="card-sub">{fuzzyAlgo}</span>
+              </div>
+              <div className="score-histogram-bars">
+                {analysis.scoreStats.map((s, idx) => {
+                  const heightPct = Math.max(6, Math.round((s.count / analysis.maxScoreCount) * 100));
+                  return (
+                    <div
+                      key={idx}
+                      className="score-bar-col"
+                      title={`${s.range} similarity: ${s.count} matches (${s.pct}%)`}
+                    >
+                      <div className="score-bar-track">
+                        <div
+                          className="score-bar-fill"
+                          style={{ height: `${heightPct}%` }}
+                        ></div>
+                      </div>
+                      <span className="score-label">{s.range}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : analysis.hasVariableLength ? (
             <div className="compact-card length-card">
               <div className="card-header-mini">
                 <strong>Match Lengths</strong>
@@ -247,7 +324,7 @@ export default function WildcardBreakdown({
               </div>
             </div>
           ) : (
-            /* If fixed length, show Step Directions */
+            /* Fixed length Step Directions */
             analysis.positionStats.length > 0 && (
               <div className="compact-card contour-card">
                 <div className="card-header-mini">
@@ -285,10 +362,10 @@ export default function WildcardBreakdown({
             )
           )}
 
-          {/* 3. Top Motifs Chips */}
+          {/* 3. Top Matched Variants */}
           <div className="compact-card motifs-card">
             <div className="card-header-mini">
-              <strong>Top Motifs</strong>
+              <strong>{analysis.isFuzzy ? 'Matched Variants' : 'Top Motifs'}</strong>
               <span className="card-sub">Filter</span>
             </div>
             <div className="motifs-mini-pills">
