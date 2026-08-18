@@ -18,11 +18,11 @@ export default function ResultCard({ item }) {
     const after = contour.substring(end);
 
     return (
-      <>
+      <span className="contour-text">
         {before}
-        <span className="highlight">{match}</span>
+        <mark className="highlight-glow">{match}</mark>
         {after}
-      </>
+      </span>
     );
   };
 
@@ -51,7 +51,7 @@ export default function ResultCard({ item }) {
       )}
 
       {contour && (
-        <div className="contour-display">
+        <div className="contour-display" title={contour}>
           <strong>Contour: </strong>
           {renderContour()}
         </div>

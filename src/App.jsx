@@ -10,9 +10,9 @@ export default function App() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
-  // Theme state ('dark' | 'light')
+  // Theme state ('dark' | 'light') — light is the default
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('adiastematic_theme') || 'dark';
+    return localStorage.getItem('adiastematic_theme') || 'light';
   });
 
   // Helper to read initial saved settings
@@ -224,6 +224,34 @@ export default function App() {
     if (state.ignoreSyllables !== undefined) setIgnoreSyllables(state.ignoreSyllables);
   }, []);
 
+  const handleUpdateSearchState = useCallback((updates, triggerSearch = true) => {
+    if (updates.query !== undefined) setQuery(updates.query);
+    if (updates.corpus !== undefined) setSelectedCorpora(updates.corpus);
+    if (updates.location !== undefined) setSearchLocation(updates.location);
+    if (updates.mode !== undefined) setSearchMode(updates.mode);
+    if (updates.region !== undefined) setRegionSize(updates.region);
+    if (updates.algo !== undefined) setFuzzyAlgo(updates.algo);
+    if (updates.threshold !== undefined) setFuzzyThreshold(updates.threshold);
+    if (updates.ignoreSyllables !== undefined) setIgnoreSyllables(updates.ignoreSyllables);
+
+    if (triggerSearch) {
+      setTimeout(() => {
+        handleSearch();
+      }, 60);
+    }
+  }, [handleSearch]);
+
+  const searchState = useMemo(() => ({
+    query,
+    selectedCorpora,
+    searchLocation,
+    searchMode,
+    regionSize,
+    fuzzyAlgo,
+    fuzzyThreshold,
+    ignoreSyllables
+  }), [query, selectedCorpora, searchLocation, searchMode, regionSize, fuzzyAlgo, fuzzyThreshold, ignoreSyllables]);
+
   return (
     <div>
       <div className="overlay"></div>
@@ -265,6 +293,10 @@ export default function App() {
               results={results}
               isLoading={isLoadingData || isSearching}
               onOpenStats={() => setIsStatsOpen(true)}
+              searchState={searchState}
+              onUpdateSearchState={handleUpdateSearchState}
+              availableCorpora={availableCorpora}
+              onSearch={handleSearch}
             />
           </>
         )}

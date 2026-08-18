@@ -2,19 +2,21 @@ import React from 'react';
 
 export default function Header({ theme, setTheme }) {
   return (
-    <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div style={{ flex: 1 }}></div>
-      <h1 style={{ flex: 2, textAlign: 'center' }}>Adiastematic Search</h1>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          className="secondary-btn"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          title="Toggle Dark/Light Theme"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
-        >
-          {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-        </button>
+    <header className="header">
+      <div className="brand">
+        <span className="brand-mark" aria-hidden="true">♪</span>
+        <div className="brand-text">
+          <h1>Adiastematic Search</h1>
+          <p className="brand-sub">Search melodic contours across chant corpora</p>
+        </div>
       </div>
+      <button
+        className="theme-toggle"
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        title="Toggle light / dark theme"
+      >
+        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+      </button>
     </header>
   );
 }

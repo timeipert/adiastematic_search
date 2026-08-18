@@ -1,12 +1,56 @@
 import React, { useState, useMemo } from 'react';
+import { getSearchDiagnostics } from '../utils/searchEngine';
 
-export default function ResultsTable({ results, isLoading, onOpenStats }) {
+export default function ResultsTable({
+  results,
+  isLoading,
+  onOpenStats,
+  searchState,
+  onUpdateSearchState,
+  availableCorpora,
+  onSearch
+}) {
   const [filterText, setFilterText] = useState('');
   const [sortBy, setSortBy] = useState('relevance'); // 'relevance' | 'title' | 'source' | 'position'
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' | 'desc'
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [expandedRow, setExpandedRow] = useState(null);
+
+  const diagnostics = useMemo(() => {
+    if (isLoading || (results && results.length > 0)) return null;
+    return getSearchDiagnostics({
+      query: searchState?.query,
+      searchMode: searchState?.searchMode,
+      searchLocation: searchState?.searchLocation,
+      regionSize: searchState?.regionSize,
+      fuzzyThreshold: searchState?.fuzzyThreshold,
+      ignoreSyllables: searchState?.ignoreSyllables,
+      selectedCorpora: searchState?.selectedCorpora,
+      availableCorpora: availableCorpora,
+      resultsCount: results?.length || 0,
+      regexError: results?.regexError
+    });
+  }, [results, isLoading, searchState, availableCorpora]);
+
+  const handleDiagnosticAction = (action) => {
+    if (!onUpdateSearchState) return;
+    if (action === 'disable_ignore_syllables') {
+      onUpdateSearchState({ ignoreSyllables: false });
+    } else if (action === 'enable_ignore_syllables') {
+      onUpdateSearchState({ ignoreSyllables: true });
+    } else if (action === 'reset_location') {
+      onUpdateSearchState({ location: 'Anywhere in the melody' });
+    } else if (action === 'max_region_size') {
+      onUpdateSearchState({ region: 100 });
+    } else if (action === 'select_all_corpora') {
+      onUpdateSearchState({ corpus: availableCorpora?.map((c) => c.name) || [] });
+    } else if (action === 'switch_to_fuzzy') {
+      onUpdateSearchState({ mode: 'fuzzy' });
+    } else if (action === 'lower_fuzzy_threshold') {
+      onUpdateSearchState({ threshold: 60 });
+    }
+  };
 
   const filteredResults = useMemo(() => {
     if (!results) return [];
@@ -243,7 +287,7 @@ export default function ResultsTable({ results, isLoading, onOpenStats }) {
                       </td>
 
                       {/* 2nd Main Column: Contour String with Highlight */}
-                      <td className="cell-contour">
+                      <td className="cell-contour" title={item.contour}>
                         {renderContourHighlight(item.contour, item.matchIndices)}
                       </td>
 
@@ -311,8 +355,61 @@ export default function ResultsTable({ results, isLoading, onOpenStats }) {
               })
             ) : (
               <tr>
-                <td colSpan="8" className="empty-state">
-                  {isLoading ? 'Searching database...' : 'No matching melodies found.'}
+                <td colSpan="8" className="empty-state-cell">
+                  {isLoading ? (
+                    <div className="empty-state-loading">
+                      <div className="loader"></div>
+                      <p>Searching melodic databases...</p>
+                    </div>
+                  ) : filterText.trim() ? (
+                    <div className="empty-state-box">
+                      <p>No results match your active filter <strong>"{filterText}"</strong>.</p>
+                      <button className="secondary-btn" onClick={() => setFilterText('')}>
+                        Clear Filter
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="empty-state-diagnostic">
+                      <div className="diagnostic-header">
+                        <span className="diagnostic-icon" aria-hidden="true">🔍</span>
+                        <h3>No melodies matched your query {searchState?.query ? `"${searchState.query}"` : ''}</h3>
+                      </div>
+
+                      {results?.regexError && (
+                        <div className="compiler-alert compiler-error" style={{ margin: '1rem 0', textAlign: 'left' }}>
+                          <span className="compiler-icon" aria-hidden="true">⚠️</span>
+                          <div className="compiler-body">
+                            <strong>Regex Compilation Failed:</strong> {results.regexError.message}
+                          </div>
+                        </div>
+                      )}
+
+                      {diagnostics && diagnostics.length > 0 && (
+                        <div className="diagnostic-advisor-panel">
+                          <div className="advisor-title">💡 Diagnostic Suggestions & 1-Click Remedies:</div>
+                          <div className="diagnostic-cards-grid">
+                            {diagnostics.map((diag, dIdx) => (
+                              <div key={dIdx} className={`diagnostic-card ${diag.type}`}>
+                                <div className="diagnostic-card-main">
+                                  <strong>{diag.title}</strong>
+                                  <p>{diag.message}</p>
+                                </div>
+                                {diag.remedyLabel && (
+                                  <button
+                                    type="button"
+                                    className="primary-btn btn-sm diagnostic-btn"
+                                    onClick={() => handleDiagnosticAction(diag.action)}
+                                  >
+                                    {diag.remedyLabel}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </td>
               </tr>
             )}

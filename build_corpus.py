@@ -18,13 +18,14 @@ def transform_to_contour(volpiano_melody):
         
     notes = []
     for i, char in enumerate(volpiano_melody):
-        if char in VOLPIANO_ALPHABET:
-            notes.append({'char': char, 'pos': i})
+        lower_c = char.lower()
+        if lower_c in POSITION_MAP:
+            notes.append({'char': lower_c, 'pos': i})
             
-    if len(notes) < 2:
+    if len(notes) == 0:
         return pd.NA
         
-    contour = []
+    contour = ["*"]
     for i in range(len(notes) - 1):
         n1 = notes[i]
         n2 = notes[i+1]
@@ -43,8 +44,13 @@ def transform_to_contour(volpiano_melody):
             c = "r"
             
         inter_content = volpiano_melody[n1['pos']+1 : n2['pos']]
-        if '-' in inter_content:
-            contour.append("_")
+        hyphen_count = inter_content.count('-')
+        has_barline = any(b in inter_content for b in ['3', '4', '6', '7'])
+        
+        if hyphen_count >= 2 or has_barline:
+            contour.append("___")
+        elif hyphen_count == 1:
+            contour.append(" ")
             
         contour.append(c)
         
@@ -82,6 +88,152 @@ def process_excel_dataset(filepath, source_name, prefix, page_col="Folio/Page", 
             df[col] = ""
             
     return df[COLS_TO_KEEP]
+
+def process_parkes_dataset(filepath="data/Parkes Database.csv"):
+    if not os.path.exists(filepath):
+        return pd.DataFrame()
+    print(f"Processing Parkes Database from {filepath}...")
+    try:
+        df = pd.read_csv(filepath, encoding="latin-1")
+        df.dropna(subset=["melody_volpiano"], inplace=True)
+        df = df.copy()
+        df["volpiano"] = df["melody_volpiano"].astype(str)
+        df["contour"] = df["volpiano"].apply(transform_to_contour)
+        df.dropna(subset=["contour"], inplace=True)
+        
+        df["uuid"] = [f"Parkes_{r}" for r in df["neuma_instance_id"]]
+        df["initial_text"] = df["chant_incipit"].fillna("").astype(str)
+        df["melodyname_standardized"] = df["chant_incipit"].fillna("").astype(str)
+        df["genre"] = df["genre_description"].replace(r"\N", "").fillna("")
+        df["mode"] = df["mode_name"].replace(r"\N", "").fillna("").astype(str)
+        df["feast_day"] = df["feast"].replace(r"\N", "").fillna("")
+        def format_parkes_siglum(r):
+            ms = str(r.get('manuscript_short_title', '')).replace(r'\N', '').strip()
+            fol = str(r.get('folio', '')).replace(r'\N', '').strip()
+            return f"{ms} {fol}".strip()
+
+        def format_parkes_related(r):
+            cao = str(r.get('cao', '')).replace(r'\N', '').strip()
+            if cao:
+                return cao
+            url = str(r.get('neuma_instance_url', '')).replace(r'\N', '').strip()
+            return url
+
+        df["siglum"] = df.apply(format_parkes_siglum, axis=1)
+        df["related_chant"] = df.apply(format_parkes_related, axis=1)
+        df["editor"] = df["brief_description"].astype(str).replace(r"\N", "").fillna("")
+        df["database_source"] = "Parkes Database"
+        
+        for col in COLS_TO_KEEP:
+            if col not in df.columns:
+                df[col] = ""
+        return df[COLS_TO_KEEP]
+    except Exception as e:
+        print(f"Error processing Parkes dataset: {e}")
+        return pd.DataFrame()
+
+def process_latin1084_docx(filepath="data/Latin_1084 - Incomplete.docx"):
+    if not os.path.exists(filepath):
+        return pd.DataFrame()
+    print(f"Processing BnF Latin 1084 from {filepath}...")
+    import zipfile
+    import xml.etree.ElementTree as ET
+    try:
+        with zipfile.ZipFile(filepath) as z:
+            xml_content = z.read("word/document.xml")
+            tree = ET.fromstring(xml_content)
+            ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+            paras = tree.findall(".//w:p", ns)
+
+        lines = []
+        for p in paras:
+            text = "".join(node.text for node in p.iter() if node.text).strip()
+            if text:
+                lines.append(text)
+
+        start_idx = 0
+        for i, l in enumerate(lines):
+            if l == "Latin 1084":
+                start_idx = i + 1
+                break
+
+        chants = []
+        current_title = ""
+        current_folio = ""
+        current_lines = []
+
+        def clean_line(s):
+            s = re.sub(r"\{[^}]*\}", "", s)
+            s = re.sub(r"“[^”]*”", "", s)
+            s = re.sub(r"\"[^\"]*\"", "", s)
+            s = s.replace("…", "").replace("...", "")
+            return s.strip()
+
+        for l in lines[start_idx:]:
+            cl = clean_line(l)
+            if not cl:
+                continue
+            
+            is_title = False
+            if re.search(r",\s*fol\.\s*\d+[rv]?", l, re.IGNORECASE):
+                is_title = True
+            elif not any(cl.startswith(c) for c in ["^", ".", "[", "u", "d", "r"]) and len(cl) < 60:
+                is_title = True
+            elif cl == "$":
+                if current_title and current_lines:
+                    contour_raw = " ".join(current_lines).strip()
+                    chants.append({"title": current_title, "folio": current_folio, "contour": contour_raw})
+                    current_title = ""
+                    current_folio = ""
+                    current_lines = []
+                continue
+
+            if is_title:
+                if current_title and current_lines:
+                    contour_raw = " ".join(current_lines).strip()
+                    chants.append({"title": current_title, "folio": current_folio, "contour": contour_raw})
+                    current_lines = []
+                parts = l.split(",")
+                current_title = parts[0].strip()
+                current_folio = parts[1].strip() if len(parts) > 1 else ""
+            else:
+                current_lines.append(cl)
+
+        if current_title and current_lines:
+            contour_raw = " ".join(current_lines).strip()
+            chants.append({"title": current_title, "folio": current_folio, "contour": contour_raw})
+
+        rows = []
+        for i, r in enumerate(chants):
+            c_str = r["contour"].replace("^.", "*").replace("^", "*").replace("$", "").strip()
+            # If string does not start with *, prefix with *
+            if not c_str.startswith("*") and not c_str.startswith("."):
+                c_str = "* " + c_str
+            rows.append({
+                "uuid": f"BNF_Lat1084_{i+1:03d}",
+                "siglum": f"Paris, BnF, lat. 1084 {r['folio']}".strip(),
+                "initial_text": r["title"],
+                "melodyname_standardized": r["title"],
+                "volpiano": "",
+                "contour": c_str,
+                "database_source": "BnF Latin 1084",
+                "genre": "",
+                "mode": "",
+                "related_chant": "",
+                "editor": "Personal Transcription (Adiastematic)",
+                "feast_day": "",
+                "feast_time": "",
+                "subgenre": "",
+                "genre2": ""
+            })
+        df_out = pd.DataFrame(rows)
+        for col in COLS_TO_KEEP:
+            if col not in df_out.columns:
+                df_out[col] = ""
+        return df_out[COLS_TO_KEEP]
+    except Exception as e:
+        print(f"Error processing Latin 1084 docx: {e}")
+        return pd.DataFrame()
 
 def build_corpus():
     print("Building Combined Corpus Data...")
@@ -163,7 +315,17 @@ def build_corpus():
         if not df_excel.empty:
             dfs.append(df_excel)
 
-    # 4. Personal Transcriptions (if present)
+    # 4. Parkes Database
+    df_parkes = process_parkes_dataset("data/Parkes Database.csv")
+    if not df_parkes.empty:
+        dfs.append(df_parkes)
+
+    # 5. BnF Latin 1084
+    df_lat1084 = process_latin1084_docx("data/Latin_1084 - Incomplete.docx")
+    if not df_lat1084.empty:
+        dfs.append(df_lat1084)
+
+    # 6. Personal Transcriptions (if present)
     for t_path in ["transcriptions.csv", "data/transcriptions.csv"]:
         if os.path.exists(t_path):
             print(f"Processing Personal Transcriptions from {t_path}...")

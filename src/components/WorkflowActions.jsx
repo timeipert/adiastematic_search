@@ -66,7 +66,7 @@ export default function WorkflowActions({ getSearchState, setSearchState, onSear
   };
 
   return (
-    <div className="actions secondary-actions">
+    <div className="workflow-actions">
       <div className="workflow-group">
         <div className="saved-queries-container">
           <input
