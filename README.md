@@ -67,3 +67,7 @@ npm run preview
 # OR
 python -m http.server 8000 --directory docs
 ```
+
+
+---
+This tool was part-wise created with the help of Large Language Models.
