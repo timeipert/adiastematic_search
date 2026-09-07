@@ -366,6 +366,13 @@ export default function App() {
               onSearch={handleSearch}
           />
         </>
+
+        <footer className="site-footer">
+          <p>
+            Part of the <strong>Corpus Monodicum</strong> infrastructure. Visit the main platform at{' '}
+            <a href="https://monodi.app" target="_blank" rel="noopener noreferrer">monodi.app</a>.
+          </p>
+        </footer>
       </main>
 
       <StatsModal

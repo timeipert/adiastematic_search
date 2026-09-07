@@ -2067,3 +2067,23 @@ mark.highlight-glow-volpiano,
 .syllable-toggle {
     width: fit-content;
 }
+
+/* ── Site footer — Corpus Monodicum attribution ─────────────────────── */
+.site-footer {
+    margin-top: 0.5rem;
+    padding: 1.25rem 0.25rem 0.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--panel-border);
+}
+
+.site-footer a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.site-footer a:hover {
+    text-decoration: underline;
+}
