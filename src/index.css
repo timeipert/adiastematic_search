@@ -224,7 +224,9 @@ body {
     pointer-events: none;
 }
 
-.search-input {
+/* Note: needs higher specificity than the generic `input[type="text"]` rule
+   above so the left padding (which clears the search icon) is not overridden. */
+input[type="text"].search-input {
     width: 100%;
     padding: 1rem 1.1rem 1rem 3rem;
     font-size: 1.15rem;
@@ -1181,6 +1183,28 @@ mark.highlight-glow-volpiano,
     border-radius: 6px;
 }
 
+/* Match position shown as a dot on a fixed-length track (0% = start, 100% = end) */
+.pos-track {
+    position: relative;
+    width: 92px;
+    height: 3px;
+    background: var(--panel-border-strong);
+    border-radius: 3px;
+    margin: 0.6rem 4px;
+}
+
+.pos-dot {
+    position: absolute;
+    top: 50%;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--panel-bg);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 2px var(--accent-border);
+}
+
 .btn-icon-tiny {
     background: none;
     border: 1px solid transparent;
@@ -1858,3 +1882,188 @@ mark.highlight-glow-volpiano,
     margin-top: 2px;
 }
 
+
+/* ── Import corpus (monodi workspace uploader) ───────────────────────── */
+.import-corpus {
+    margin-top: 1.25rem;
+}
+
+.import-intro {
+    margin: 0 0 0.9rem;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.import-intro code {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    border-radius: 6px;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.85em;
+}
+
+.import-actions {
+    margin-bottom: 1rem;
+}
+
+.import-warning {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: var(--radius-sm);
+    padding: 0.7rem 0.9rem;
+    color: var(--text-main);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.import-warning span[aria-hidden] {
+    font-size: 1.1rem;
+    line-height: 1.3;
+}
+
+.imported-list {
+    margin-top: 1rem;
+}
+
+.imported-list ul {
+    list-style: none;
+    margin: 0.4rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.imported-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-sm);
+    background: var(--panel-bg);
+}
+
+.imported-name {
+    font-weight: 600;
+    color: var(--text-main);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.imported-remove {
+    color: #f5365c;
+}
+
+/* ------------------------------------------------------------------ */
+/* Results: full-bleed width + melody-focused visual hierarchy         */
+/* Priority: (1) Volpiano melody  (2) Contour/directions  (3) Title    */
+/* ------------------------------------------------------------------ */
+.dashboard > .results {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    border-radius: 0;
+    padding: 1.75rem clamp(1rem, 4vw, 3rem);
+}
+
+/* Roomier rows so the enlarged notation can breathe */
+.results-table {
+    font-size: 1rem;
+}
+
+.results-table td {
+    padding: 1.15rem 1rem;
+}
+
+/* (1) Volpiano melody — the largest, primary element.
+   Kept bounded (max-width) so long melodies scroll inside the cell
+   instead of stretching the whole table. */
+.cell-volpiano {
+    min-width: 340px;
+    width: 44%;
+    max-width: 640px;
+}
+
+.volpiano-cell {
+    font-size: 2.85rem;
+    padding: 0.5rem 0.9rem;
+}
+
+/* (2) Contour (directions) — secondary focus, bigger and full-contrast */
+.cell-contour {
+    min-width: 210px;
+    width: 22%;
+    max-width: 380px;
+}
+
+.contour-cell {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.contour-text {
+    font-size: inherit;
+}
+
+/* (3) Title / name — tertiary focus */
+.cell-title {
+    font-size: 1.05rem;
+    max-width: 220px;
+}
+
+@media (max-width: 640px) {
+    .dashboard > .results {
+        padding: 1.1rem;
+    }
+
+    .volpiano-cell {
+        font-size: 2rem;
+    }
+
+    .contour-cell {
+        font-size: 1.15rem;
+    }
+}
+
+/* ── Syllable-boundary strategy selector (Fixed / Ignore / Loose) ────── */
+.syllable-strategy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.syllable-strategy-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.syllable-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    color: var(--accent);
+    font-size: 0.68rem;
+    font-weight: 700;
+    cursor: help;
+}
+
+.syllable-toggle {
+    width: fit-content;
+}

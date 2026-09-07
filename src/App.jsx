@@ -1,14 +1,35 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import Controls from './components/Controls';
+import ImportCorpus from './components/ImportCorpus';
 import ResultsTable from './components/ResultsTable';
 import StatsModal from './components/StatsModal';
 import { searchCorpus } from './utils/searchEngine';
+import { loadImportedCorpora, saveImportedCorpora } from './utils/monodiImport';
 
 export default function App() {
-  const [corpusData, setCorpusData] = useState([]);
+  // Base corpora fetched from search_data.json
+  const [baseData, setBaseData] = useState([]);
+  // Corpora imported by the user from monodi workspace files (localStorage-backed)
+  const [importedCorpora, setImportedCorpora] = useState(() => loadImportedCorpora());
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [loadError, setLoadError] = useState(null);
+
+  // The full searchable dataset = base corpora + every imported corpus.
+  const corpusData = useMemo(() => {
+    const imported = importedCorpora.flatMap((c) => c.items || []);
+    return [...baseData, ...imported];
+  }, [baseData, importedCorpora]);
+
+  // Corpus options (name + count) derived from the combined dataset.
+  const availableCorpora = useMemo(() => {
+    const counts = {};
+    corpusData.forEach((item) => {
+      const src = (item.database_source || 'Unknown').trim();
+      counts[src] = (counts[src] || 0) + 1;
+    });
+    return Object.keys(counts).map((src) => ({ name: src, count: counts[src] }));
+  }, [corpusData]);
 
   // Theme state ('dark' | 'light') — light is the default
   const [theme, setTheme] = useState(() => {
@@ -27,14 +48,20 @@ export default function App() {
 
   // Search Controls State (with LocalStorage initial fallback)
   const [query, setQuery] = useState(() => savedSettings?.query || 'uddu');
-  const [availableCorpora, setAvailableCorpora] = useState([]);
   const [selectedCorpora, setSelectedCorpora] = useState(() => savedSettings?.selectedCorpora || []);
   const [searchMode, setSearchMode] = useState(() => savedSettings?.searchMode || 'exact');
   const [searchLocation, setSearchLocation] = useState(() => savedSettings?.searchLocation || 'Anywhere in the melody');
   const [regionSize, setRegionSize] = useState(() => savedSettings?.regionSize || 25);
   const [fuzzyAlgo, setFuzzyAlgo] = useState(() => savedSettings?.fuzzyAlgo || 'hamming');
   const [fuzzyThreshold, setFuzzyThreshold] = useState(() => savedSettings?.fuzzyThreshold || 80);
-  const [ignoreSyllables, setIgnoreSyllables] = useState(() => savedSettings?.ignoreSyllables !== undefined ? savedSettings.ignoreSyllables : true);
+  // Syllable-boundary strategy: 'fixed' | 'ignore' | 'loose' (default loose).
+  // Legacy setting migration: old boolean ignoreSyllables → true was "ignore"
+  // (now superseded by the more capable "loose"), false → "fixed".
+  const [syllableMode, setSyllableMode] = useState(() => {
+    if (savedSettings?.syllableMode) return savedSettings.syllableMode;
+    if (savedSettings?.ignoreSyllables === false) return 'fixed';
+    return 'loose';
+  });
 
   // Recent Search History (Last 5 unique searches)
   const [searchHistory, setSearchHistory] = useState(() => {
@@ -67,10 +94,10 @@ export default function App() {
       regionSize,
       fuzzyAlgo,
       fuzzyThreshold,
-      ignoreSyllables
+      syllableMode
     };
     localStorage.setItem('adiastematic_user_settings', JSON.stringify(settings));
-  }, [availableCorpora, query, selectedCorpora, searchMode, searchLocation, regionSize, fuzzyAlgo, fuzzyThreshold, ignoreSyllables]);
+  }, [availableCorpora, query, selectedCorpora, searchMode, searchLocation, regionSize, fuzzyAlgo, fuzzyThreshold, syllableMode]);
 
   // Web Worker Instance
   const pcaWorker = useMemo(() => {
@@ -91,32 +118,8 @@ export default function App() {
         return res.json();
       })
       .then((data) => {
-        setCorpusData(data);
+        setBaseData(data);
         setIsLoadingData(false);
-
-        // Extract corpora options
-        const countsMap = {};
-        data.forEach((item) => {
-          const src = (item.database_source || 'Unknown').trim();
-          countsMap[src] = (countsMap[src] || 0) + 1;
-        });
-
-        const corpora = Object.keys(countsMap).map((src) => ({
-          name: src,
-          count: countsMap[src]
-        }));
-
-        setAvailableCorpora(corpora);
-
-        // Set selectedCorpora: if savedSettings existed and has valid choices, keep them; else default to all
-        setSelectedCorpora((prevSelected) => {
-          if (prevSelected && prevSelected.length > 0) {
-            const validSet = new Set(corpora.map((c) => c.name));
-            const filtered = prevSelected.filter((name) => validSet.has(name));
-            if (filtered.length > 0) return filtered;
-          }
-          return corpora.map((c) => c.name);
-        });
       })
       .catch((err) => {
         console.error('Data loading error:', err);
@@ -124,6 +127,50 @@ export default function App() {
         setIsLoadingData(false);
       });
   }, []);
+
+  // Reconcile the selected-corpora choice once, after the base data has loaded:
+  // keep the user's saved selection where still valid, otherwise select all.
+  const selectionInitialized = useRef(false);
+  useEffect(() => {
+    if (isLoadingData) return;
+    if (selectionInitialized.current) return;
+    if (availableCorpora.length === 0) return;
+    selectionInitialized.current = true;
+
+    setSelectedCorpora((prevSelected) => {
+      if (prevSelected && prevSelected.length > 0) {
+        const validSet = new Set(availableCorpora.map((c) => c.name));
+        const filtered = prevSelected.filter((name) => validSet.has(name));
+        if (filtered.length > 0) return filtered;
+      }
+      return availableCorpora.map((c) => c.name);
+    });
+  }, [isLoadingData, availableCorpora]);
+
+  // Import a parsed monodi corpus: persist to localStorage, add to the dataset,
+  // and auto-select it. Returns false if localStorage could not be written.
+  const handleImportCorpus = useCallback(
+    (corpus) => {
+      const next = [...importedCorpora.filter((c) => c.name !== corpus.name), corpus];
+      const persisted = saveImportedCorpora(next);
+      setImportedCorpora(next);
+      setSelectedCorpora((prev) =>
+        prev.includes(corpus.name) ? prev : [...prev, corpus.name]
+      );
+      return persisted;
+    },
+    [importedCorpora]
+  );
+
+  const handleRemoveImported = useCallback(
+    (name) => {
+      const next = importedCorpora.filter((c) => c.name !== name);
+      saveImportedCorpora(next);
+      setImportedCorpora(next);
+      setSelectedCorpora((prev) => prev.filter((n) => n !== name));
+    },
+    [importedCorpora]
+  );
 
   // Search Action
   const handleSearch = useCallback(() => {
@@ -150,7 +197,7 @@ export default function App() {
         regionSize,
         fuzzyAlgo,
         fuzzyThreshold,
-        ignoreSyllables
+        syllableMode
       });
       setResults(res);
       setIsSearching(false);
@@ -164,7 +211,7 @@ export default function App() {
     regionSize,
     fuzzyAlgo,
     fuzzyThreshold,
-    ignoreSyllables
+    syllableMode
   ]);
 
   // Initial search when data ready
@@ -182,11 +229,23 @@ export default function App() {
         if (params.has('region')) setRegionSize(parseInt(params.get('region')));
         if (params.has('algo')) setFuzzyAlgo(params.get('algo'));
         if (params.has('threshold')) setFuzzyThreshold(parseInt(params.get('threshold')));
-        if (params.has('ignoreSyllables')) setIgnoreSyllables(params.get('ignoreSyllables') === 'true');
+        if (params.has('syllableMode')) setSyllableMode(params.get('syllableMode'));
       }
       handleSearch();
     }
   }, [corpusData, isLoadingData]);
+
+  // Re-run the search whenever the set of imported corpora changes (import/remove),
+  // but only once the base data is ready so we don't fire on the initial mount.
+  const importResearchReady = useRef(false);
+  useEffect(() => {
+    if (isLoadingData) return;
+    if (!importResearchReady.current) {
+      importResearchReady.current = true; // skip the first (initial-load) run
+      return;
+    }
+    handleSearch();
+  }, [importedCorpora, isLoadingData]);
 
   const handleSelectHistory = (histQuery) => {
     setQuery(histQuery);
@@ -202,9 +261,9 @@ export default function App() {
       region: regionSize,
       algo: fuzzyAlgo,
       threshold: fuzzyThreshold,
-      ignoreSyllables
+      syllableMode
     };
-  }, [query, selectedCorpora, searchLocation, searchMode, regionSize, fuzzyAlgo, fuzzyThreshold, ignoreSyllables]);
+  }, [query, selectedCorpora, searchLocation, searchMode, regionSize, fuzzyAlgo, fuzzyThreshold, syllableMode]);
 
   const setSearchState = useCallback((state) => {
     if (!state) return;
@@ -221,7 +280,7 @@ export default function App() {
     if (state.region !== undefined) setRegionSize(parseInt(state.region));
     if (state.algo !== undefined) setFuzzyAlgo(state.algo);
     if (state.threshold !== undefined) setFuzzyThreshold(parseInt(state.threshold));
-    if (state.ignoreSyllables !== undefined) setIgnoreSyllables(state.ignoreSyllables);
+    if (state.syllableMode !== undefined) setSyllableMode(state.syllableMode);
   }, []);
 
   const handleUpdateSearchState = useCallback((updates, triggerSearch = true) => {
@@ -232,7 +291,7 @@ export default function App() {
     if (updates.region !== undefined) setRegionSize(updates.region);
     if (updates.algo !== undefined) setFuzzyAlgo(updates.algo);
     if (updates.threshold !== undefined) setFuzzyThreshold(updates.threshold);
-    if (updates.ignoreSyllables !== undefined) setIgnoreSyllables(updates.ignoreSyllables);
+    if (updates.syllableMode !== undefined) setSyllableMode(updates.syllableMode);
 
     if (triggerSearch) {
       setTimeout(() => {
@@ -249,8 +308,8 @@ export default function App() {
     regionSize,
     fuzzyAlgo,
     fuzzyThreshold,
-    ignoreSyllables
-  }), [query, selectedCorpora, searchLocation, searchMode, regionSize, fuzzyAlgo, fuzzyThreshold, ignoreSyllables]);
+    syllableMode
+  }), [query, selectedCorpora, searchLocation, searchMode, regionSize, fuzzyAlgo, fuzzyThreshold, syllableMode]);
 
   return (
     <div>
@@ -258,13 +317,15 @@ export default function App() {
       <main className="dashboard">
         <Header theme={theme} setTheme={setTheme} />
 
-        {loadError ? (
+        {loadError && (
           <div className="glass-panel empty-state" style={{ color: '#f5365c' }}>
-            Error loading database: {loadError}. Please run `npm run build-data`.
+            Error loading the built-in database: {loadError}. Please run `npm run build-data`.
+            You can still import and search your own corpora below.
           </div>
-        ) : (
-          <>
-            <Controls
+        )}
+
+        <>
+          <Controls
               query={query}
               setQuery={setQuery}
               availableCorpora={availableCorpora}
@@ -280,13 +341,19 @@ export default function App() {
               setFuzzyAlgo={setFuzzyAlgo}
               fuzzyThreshold={fuzzyThreshold}
               setFuzzyThreshold={setFuzzyThreshold}
-              ignoreSyllables={ignoreSyllables}
-              setIgnoreSyllables={setIgnoreSyllables}
+              syllableMode={syllableMode}
+              setSyllableMode={setSyllableMode}
               onSearch={handleSearch}
               getSearchState={getSearchState}
               setSearchState={setSearchState}
               searchHistory={searchHistory}
               onSelectHistory={handleSelectHistory}
+            />
+
+            <ImportCorpus
+              importedCorpora={importedCorpora}
+              onImport={handleImportCorpus}
+              onRemove={handleRemoveImported}
             />
 
             <ResultsTable
@@ -297,9 +364,8 @@ export default function App() {
               onUpdateSearchState={handleUpdateSearchState}
               availableCorpora={availableCorpora}
               onSearch={handleSearch}
-            />
-          </>
-        )}
+          />
+        </>
       </main>
 
       <StatsModal

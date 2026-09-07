@@ -1,19 +1,59 @@
-export function preprocessQuery(q, ignoreSyllables = true) {
+// Builds the regex for the "fixed" and "ignore" syllable strategies. It always
+// keeps underscores (syllable boundaries) literal — the difference between the
+// two strategies is made by how the DATA contour is stripped before matching
+// (see searchCorpus): "fixed" keeps boundaries in the data so they must align,
+// while "ignore" removes them from the data so a boundary in the query matches
+// nothing. Neume spaces never affect search and are removed here.
+export function preprocessQuery(q) {
   let query = (q || '').trim();
   query = query.replace(/\[\.\.\.\]/g, '.*');
   query = query.replace(/\[/g, '(').replace(/\]/g, ')');
-  if (ignoreSyllables) {
-    // If ignoring syllables, remove both underscores and spaces
-    query = query.replace(/[\s_]+/g, '');
-  } else {
-    // Neume spaces should never affect search, remove whitespace
-    query = query.replace(/\s+/g, '');
-  }
+  // Neume spaces should never affect search, remove whitespace
+  query = query.replace(/\s+/g, '');
   // In regex, '.' matches any relative pitch step (u, d, r) and NEVER the start note '*' or syllable boundary
   query = query.replace(/(^|[^\\])\./g, '$1[udr]');
   // Escape literal * when at start of string or preceded by group/alternation/boundary so regex doesn't crash on /*/
   query = query.replace(/(^|[\s|(^])\*/g, '$1\\*');
   return query;
+}
+
+// Regex atom for a single query note-unit (from parseQueryToUnits).
+function looseNoteAtom(u) {
+  if (u.isWildcard) return '[udr]';
+  const arr = [...u.allowed];
+  if (arr.length === 0) return '[udr]';
+  if (arr.length === 1) {
+    const c = arr[0];
+    return c === '*' ? '\\*' : c;
+  }
+  return '[' + arr.join('') + ']';
+}
+
+// Builds the regex for the "loose" syllable strategy. Directions are matched in
+// order; between them a gap where the query specified a boundary ("___") must be
+// a real syllable break ("_+"), while an unspecified gap may be anything —
+// tight, neume or syllable ("[_ ]*"). The data contour is left unstripped so
+// these gap matchers can consume its boundary characters. Extra boundaries in
+// the data at unspecified gaps are therefore allowed.
+export function buildLooseRegex(queryUnits) {
+  let re = '';
+  let firstNote = true;
+  let requireBoundary = false;
+  for (const u of queryUnits) {
+    if (u.type === 'syllable') {
+      requireBoundary = true;
+      continue;
+    }
+    if (u.type !== 'note') continue;
+    if (firstNote) {
+      re += looseNoteAtom(u);
+      firstNote = false;
+    } else {
+      re += (requireBoundary ? '_+' : '[_ ]*') + looseNoteAtom(u);
+    }
+    requireBoundary = false;
+  }
+  return re;
 }
 
 export function parseQueryToTokens(q) {
@@ -103,14 +143,19 @@ export function findSubsequenceMatch(queryTokens, target, startIdx) {
   };
 }
 
-export function mapIndicesToOriginalContour(originalContour, searchStart, searchEnd, ignoreSyllables) {
+// stripMode: 'both' (underscores + spaces removed), 'space' (only spaces
+// removed), or 'none' (nothing removed — search string equals the contour).
+export function mapIndicesToOriginalContour(originalContour, searchStart, searchEnd, stripMode) {
+  if (stripMode === 'none') {
+    return { start: searchStart, end: searchEnd };
+  }
   let searchIdx = 0;
   let origStart = -1;
   let origEnd = -1;
 
   for (let i = 0; i < originalContour.length; i++) {
     const ch = originalContour[i];
-    const isSearchChar = ignoreSyllables ? (ch !== '_' && ch !== ' ') : (ch !== ' ');
+    const isSearchChar = stripMode === 'both' ? (ch !== '_' && ch !== ' ') : (ch !== ' ');
     if (isSearchChar) {
       if (searchIdx === searchStart) {
         origStart = i;
@@ -163,7 +208,13 @@ export function getVolpianoMatchIndices(volpianoStr, originalContour, matchIndic
 
   if (countMatch === 0 || countBefore >= notePositions.length) return null;
 
-  const startNoteIdx = countBefore;
+  // A contour direction (u/d/r) is an INTERVAL between two notes, whereas "*" is
+  // the incipit note itself. When the match begins on an interval rather than on
+  // "*", also highlight the note that first interval departs from, so the full
+  // melodic figure (N intervals -> N+1 notes) is shown. Matching "*udddu" and
+  // "udddu" then highlight the same notes.
+  const anchorBack = countBefore > 0 ? 1 : 0;
+  const startNoteIdx = countBefore - anchorBack;
   const lastNoteIdx = Math.min(notePositions.length - 1, countBefore + countMatch - 1);
 
   const vStart = notePositions[startNoteIdx];
@@ -172,7 +223,7 @@ export function getVolpianoMatchIndices(volpianoStr, originalContour, matchIndic
   return { start: vStart, end: vEnd };
 }
 
-export function validateQuery(rawQuery, searchMode = 'exact', ignoreSyllables = true) {
+export function validateQuery(rawQuery, searchMode = 'exact', syllableMode = 'loose') {
   const q = (rawQuery || '').trim();
   if (!q) return { isValid: true, error: null, warnings: [], compiledRegex: null };
 
@@ -180,14 +231,15 @@ export function validateQuery(rawQuery, searchMode = 'exact', ignoreSyllables = 
   let error = null;
   let compiledRegex = null;
 
-  // 1. Syllable separator warning when ignoreSyllables is true
-  if (ignoreSyllables && (q.includes('___') || q.includes('_'))) {
+  // 1. In "ignore" mode a boundary in the query can never match (boundaries are
+  // stripped from the melody), so the search returns nothing on purpose.
+  if (syllableMode === 'ignore' && q.includes('_')) {
     warnings.push({
       id: 'syllable_ignored',
       type: 'warning',
-      message: 'Query contains syllable separators ("_"), but "Ignore syllables in search" is active (underscores are stripped).',
-      actionLabel: 'Disable "Ignore syllables"',
-      action: 'disable_ignore_syllables'
+      message: 'Boundaries ("___") never match in "Ignore boundaries" mode, so this query finds nothing. Use "Loose" to require a boundary only where you type one, or "Fixed" to match exact boundaries.',
+      actionLabel: 'Switch to Loose',
+      action: 'use_loose_syllables'
     });
   }
 
@@ -221,7 +273,9 @@ export function validateQuery(rawQuery, searchMode = 'exact', ignoreSyllables = 
   // 4. Regex validation when in exact mode
   if (searchMode === 'exact') {
     try {
-      const processedPattern = preprocessQuery(q, ignoreSyllables);
+      const processedPattern = syllableMode === 'loose'
+        ? buildLooseRegex(parseQueryToUnits(q))
+        : preprocessQuery(q);
       new RegExp(processedPattern, 'g');
       compiledRegex = `/${processedPattern}/g`;
     } catch (err) {
@@ -258,7 +312,7 @@ export function getSearchDiagnostics({
   searchLocation,
   regionSize,
   fuzzyThreshold,
-  ignoreSyllables,
+  syllableMode,
   selectedCorpora,
   availableCorpora,
   resultsCount,
@@ -281,22 +335,22 @@ export function getSearchDiagnostics({
     return diagnostics;
   }
 
-  // 2. Syllable setting mismatch
-  if (ignoreSyllables && (q.includes('___') || q.includes('_') || q.includes(' '))) {
+  // 2. Syllable strategy mismatch
+  if (syllableMode === 'ignore' && q.includes('_')) {
     diagnostics.push({
       type: 'warning',
-      title: 'Syllable Separators Ignored',
-      message: 'Your query includes syllable or neume breaks ("_" or spaces), but "Ignore syllables in search" was checked, so separators were stripped before searching.',
-      remedyLabel: 'Disable "Ignore syllables" & Search',
-      action: 'disable_ignore_syllables'
+      title: 'Boundaries Never Match in "Ignore" Mode',
+      message: 'Your query contains a syllable boundary ("___"), but boundaries are stripped from the melody in "Ignore boundaries" mode, so nothing can match.',
+      remedyLabel: 'Switch to "Loose" & Search',
+      action: 'use_loose_syllables'
     });
-  } else if (!ignoreSyllables && (q.includes('___') || q.includes('_') || q.includes(' '))) {
+  } else if (syllableMode === 'fixed' && q.includes('_')) {
     diagnostics.push({
       type: 'suggestion',
-      title: 'Strict Syllable Boundaries Active',
-      message: 'Search was performed with strict syllable and neume spacing. Melodies in the corpora may differ in spacing.',
-      remedyLabel: 'Enable "Ignore syllables" & Search',
-      action: 'enable_ignore_syllables'
+      title: 'Exact Boundaries Required',
+      message: 'In "Fixed boundaries" mode the syllable breaks in your query must line up exactly with the melody. Try "Loose" to require a boundary only where you type one.',
+      remedyLabel: 'Switch to "Loose" & Search',
+      action: 'use_loose_syllables'
     });
   }
 
@@ -515,10 +569,98 @@ export function parseQueryToUnits(queryStr) {
   return units;
 }
 
-export function matchUncertainContour(queryUnits, origContour, ignoreSyllables, start_pct, end_pct, isFuzzy = false, fuzzyThreshold = 80) {
+// Loose matching for contours that carry uncertain notation ([...]/(...) sets).
+// A query boundary ("___") requires a syllable break between the corresponding
+// target notes; an unspecified gap matches regardless of any break in the data.
+function matchLooseUncertain(queryUnits, tUnits, start_pct, end_pct) {
+  const noteCount = queryUnits.filter((u) => u.type === 'note').length;
+  const totalNotes = tUnits.filter((u) => u.type === 'note').length;
+  if (noteCount === 0 || totalNotes === 0) return null;
+
+  let notesBefore = 0;
+  for (let s = 0; s < tUnits.length; s++) {
+    if (tUnits[s].type !== 'note') continue;
+
+    const match_start_pct = (notesBefore / totalNotes) * 100;
+    const match_end_pct = ((notesBefore + noteCount) / totalNotes) * 100;
+    if (match_start_pct >= start_pct && match_end_pct <= end_pct) {
+      let ti = s;
+      let requireBoundary = false;
+      let firstNote = true;
+      let ok = true;
+      let matched = 0;
+      let startUnit = null;
+      let lastEnd = null;
+
+      for (const qu of queryUnits) {
+        if (qu.type === 'syllable') {
+          requireBoundary = true;
+          continue;
+        }
+        if (qu.type !== 'note') continue;
+
+        if (!firstNote) {
+          let sawBoundary = false;
+          while (ti < tUnits.length && tUnits[ti].type === 'syllable') {
+            sawBoundary = true;
+            ti++;
+          }
+          if (requireBoundary && !sawBoundary) { ok = false; break; }
+        }
+
+        if (ti >= tUnits.length || tUnits[ti].type !== 'note') { ok = false; break; }
+        let intersects = false;
+        for (const note of qu.allowed) {
+          if (tUnits[ti].allowed.has(note)) { intersects = true; break; }
+        }
+        if (!intersects) { ok = false; break; }
+
+        if (firstNote) startUnit = tUnits[ti];
+        lastEnd = tUnits[ti].end;
+        ti++;
+        matched++;
+        firstNote = false;
+        requireBoundary = false;
+      }
+
+      if (ok && matched === noteCount) {
+        return {
+          matched: true,
+          matchPositionPct: Math.round(match_start_pct),
+          matchIndices: { start: startUnit.start, end: lastEnd },
+          accuracy: 100
+        };
+      }
+    }
+    notesBefore++;
+  }
+  return null;
+}
+
+export function matchUncertainContour(queryUnits, origContour, syllableMode, start_pct, end_pct, isFuzzy = false, fuzzyThreshold = 80) {
   const tUnits = parseContourToUnits(origContour);
-  const targetNotes = ignoreSyllables ? tUnits.filter((u) => u.type === 'note') : tUnits;
-  const queryNotes = ignoreSyllables ? queryUnits.filter((u) => u.type === 'note') : queryUnits;
+
+  // "loose" (exact only) uses the boundary-flexible walker above.
+  if (!isFuzzy && syllableMode === 'loose') {
+    return matchLooseUncertain(queryUnits, tUnits, start_pct, end_pct);
+  }
+
+  // "fixed" keeps syllable units so they must align. "ignore" (exact) drops them
+  // from the target but keeps them in the query — a boundary then can never
+  // align and the query matches nothing. Fuzzy (and loose fuzzy) approximates by
+  // dropping boundaries on both sides.
+  let targetNotes;
+  let queryNotes;
+  if (syllableMode === 'fixed') {
+    targetNotes = tUnits;
+    queryNotes = queryUnits;
+  } else if (syllableMode === 'ignore' && !isFuzzy) {
+    targetNotes = tUnits.filter((u) => u.type === 'note');
+    queryNotes = queryUnits;
+  } else {
+    targetNotes = tUnits.filter((u) => u.type === 'note');
+    queryNotes = queryUnits.filter((u) => u.type === 'note');
+  }
 
   if (queryNotes.length === 0 || targetNotes.length === 0) return null;
 
@@ -628,24 +770,36 @@ export function searchCorpus({
   regionSize,
   fuzzyAlgo,
   fuzzyThreshold,
-  ignoreSyllables
+  syllableMode = 'loose'
 }) {
   if (!corpusData || corpusData.length === 0) return [];
   const rawQuery = (query || '').toLowerCase().trim();
   if (!rawQuery) return [];
 
-  const processedPattern = preprocessQuery(rawQuery, ignoreSyllables);
   const queryUnits = parseQueryToUnits(rawQuery);
   const selectedSet = new Set(selectedCorpora || []);
+
+  // How the DATA contour is reduced before matching, and (for fuzzy) how the
+  // query tokens are cleaned. 'both' = drop underscores + spaces, 'space' = drop
+  // only neume spaces (keep boundaries), 'none' = keep everything (loose exact).
+  let stripMode;
+  if (searchMode === 'exact') {
+    stripMode = syllableMode === 'ignore' ? 'both' : (syllableMode === 'fixed' ? 'space' : 'none');
+  } else {
+    stripMode = syllableMode === 'fixed' ? 'space' : 'both';
+  }
 
   let regex;
   let tokens = [];
 
   try {
     if (searchMode === 'exact') {
+      const processedPattern = syllableMode === 'loose'
+        ? buildLooseRegex(queryUnits)
+        : preprocessQuery(rawQuery);
       regex = new RegExp(processedPattern, 'g');
     } else {
-      const cleanFuzzyQuery = ignoreSyllables ? rawQuery.replace(/[\s_]+/g, '') : rawQuery;
+      const cleanFuzzyQuery = stripMode === 'both' ? rawQuery.replace(/[\s_]+/g, '') : rawQuery.replace(/\s+/g, '');
       tokens = parseQueryToTokens(cleanFuzzyQuery);
       if (tokens.length === 0) return [];
     }
@@ -679,9 +833,9 @@ export function searchCorpus({
     if (!origContour) continue;
 
     let search_contour = origContour;
-    if (ignoreSyllables) {
+    if (stripMode === 'both') {
       search_contour = search_contour.replace(/[_ ]/g, "");
-    } else {
+    } else if (stripMode === 'space') {
       search_contour = search_contour.replace(/ /g, "");
     }
 
@@ -697,7 +851,7 @@ export function searchCorpus({
 
     if (searchMode === 'exact') {
       if (hasUncertainty) {
-        const uRes = matchUncertainContour(queryUnits, origContour, ignoreSyllables, start_pct, end_pct, false);
+        const uRes = matchUncertainContour(queryUnits, origContour, syllableMode, start_pct, end_pct, false);
         if (uRes) {
           matched = true;
           firstMatchPct = uRes.matchPositionPct;
@@ -715,7 +869,7 @@ export function searchCorpus({
             matched = true;
             if (firstMatchPct === -1) {
               firstMatchPct = Math.round(match_start_pct);
-              firstMatchIndices = mapIndicesToOriginalContour(origContour, match.index, match.index + match[0].length, ignoreSyllables);
+              firstMatchIndices = mapIndicesToOriginalContour(origContour, match.index, match.index + match[0].length, stripMode);
             }
             break;
           }
@@ -724,7 +878,7 @@ export function searchCorpus({
     } else {
       // Fuzzy mode
       if (hasUncertainty) {
-        const uRes = matchUncertainContour(queryUnits, origContour, ignoreSyllables, start_pct, end_pct, true, fuzzyThreshold);
+        const uRes = matchUncertainContour(queryUnits, origContour, syllableMode, start_pct, end_pct, true, fuzzyThreshold);
         if (uRes) {
           matched = true;
           firstMatchPct = uRes.matchPositionPct;
@@ -752,7 +906,7 @@ export function searchCorpus({
               if (accuracy > bestAccuracy) {
                 bestAccuracy = accuracy;
                 firstMatchPct = Math.round(start_pct_cand);
-                firstMatchIndices = mapIndicesToOriginalContour(origContour, sIdx, sIdx + queryLen, ignoreSyllables);
+                firstMatchIndices = mapIndicesToOriginalContour(origContour, sIdx, sIdx + queryLen, stripMode);
                 matched = true;
               }
             }
@@ -769,13 +923,13 @@ export function searchCorpus({
               if (res.accuracy > bestAccuracy) {
                 bestAccuracy = res.accuracy;
                 firstMatchPct = Math.round(start_pct_cand);
-                firstMatchIndices = mapIndicesToOriginalContour(origContour, sIdx, res.endIdx, ignoreSyllables);
+                firstMatchIndices = mapIndicesToOriginalContour(origContour, sIdx, res.endIdx, stripMode);
                 matched = true;
               }
             }
           }
         } else if (fuzzyAlgo === 'levenshtein') {
-          const cleanRaw = ignoreSyllables ? rawQuery.replace(/[\s_]+/g, '') : rawQuery;
+          const cleanRaw = stripMode === 'both' ? rawQuery.replace(/[\s_]+/g, '') : rawQuery.replace(/\s+/g, '');
           const windowSize = Math.max(1, cleanRaw.length);
           for (let sIdx = 0; sIdx <= search_contour.length - windowSize; sIdx++) {
             const start_pct_cand = (sIdx / totalLen) * 100;
@@ -790,7 +944,7 @@ export function searchCorpus({
               if (accuracy > bestAccuracy) {
                 bestAccuracy = accuracy;
                 firstMatchPct = Math.round(start_pct_cand);
-                firstMatchIndices = mapIndicesToOriginalContour(origContour, sIdx, sIdx + windowSize, ignoreSyllables);
+                firstMatchIndices = mapIndicesToOriginalContour(origContour, sIdx, sIdx + windowSize, stripMode);
                 matched = true;
               }
             }

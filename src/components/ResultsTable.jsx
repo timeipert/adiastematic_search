@@ -54,7 +54,7 @@ export default function ResultsTable({
       searchLocation: searchState?.searchLocation,
       regionSize: searchState?.regionSize,
       fuzzyThreshold: searchState?.fuzzyThreshold,
-      ignoreSyllables: searchState?.ignoreSyllables,
+      syllableMode: searchState?.syllableMode,
       selectedCorpora: searchState?.selectedCorpora,
       availableCorpora: availableCorpora,
       resultsCount: results?.length || 0,
@@ -64,10 +64,8 @@ export default function ResultsTable({
 
   const handleDiagnosticAction = (action) => {
     if (!onUpdateSearchState) return;
-    if (action === 'disable_ignore_syllables') {
-      onUpdateSearchState({ ignoreSyllables: false });
-    } else if (action === 'enable_ignore_syllables') {
-      onUpdateSearchState({ ignoreSyllables: true });
+    if (action === 'use_loose_syllables') {
+      onUpdateSearchState({ syllableMode: 'loose' });
     } else if (action === 'reset_location') {
       onUpdateSearchState({ location: 'Anywhere in the melody' });
     } else if (action === 'max_region_size') {
@@ -361,10 +359,19 @@ export default function ResultsTable({
                         {!item.genre && !item.mode && '-'}
                       </td>
 
-                      {/* Match Position / Score */}
+                      {/* Match Position — dot on a fixed-length track */}
                       <td>
                         {item.matchPositionPct !== undefined ? (
-                          <span className="pos-badge">{item.matchPositionPct}%</span>
+                          <div
+                            className="pos-track"
+                            title={`Match at ${item.matchPositionPct}% of the melody`}
+                            aria-label={`Match position: ${item.matchPositionPct}%`}
+                          >
+                            <span
+                              className="pos-dot"
+                              style={{ left: `${Math.min(100, Math.max(0, item.matchPositionPct))}%` }}
+                            ></span>
+                          </div>
                         ) : (
                           '-'
                         )}

@@ -20,8 +20,8 @@ export default function Controls({
   setFuzzyAlgo,
   fuzzyThreshold,
   setFuzzyThreshold,
-  ignoreSyllables,
-  setIgnoreSyllables,
+  syllableMode,
+  setSyllableMode,
   onSearch,
   getSearchState,
   setSearchState,
@@ -33,8 +33,8 @@ export default function Controls({
   };
 
   const validation = useMemo(() => {
-    return validateQuery(query, searchMode, ignoreSyllables);
-  }, [query, searchMode, ignoreSyllables]);
+    return validateQuery(query, searchMode, syllableMode);
+  }, [query, searchMode, syllableMode]);
 
   return (
     <section className="controls glass-panel">
@@ -76,12 +76,12 @@ export default function Controls({
               <span className="compiler-icon" aria-hidden="true">💡</span>
               <div className="compiler-body">
                 <span>{w.message}</span>
-                {w.action === 'disable_ignore_syllables' && (
+                {w.action === 'use_loose_syllables' && (
                   <button
                     type="button"
                     className="compiler-action-btn"
                     onClick={() => {
-                      setIgnoreSyllables(false);
+                      setSyllableMode('loose');
                       setTimeout(onSearch, 50);
                     }}
                   >
@@ -205,14 +205,40 @@ export default function Controls({
           />
 
           <div className="options-footer">
-            <label className="check-option">
-              <input
-                type="checkbox"
-                checked={ignoreSyllables}
-                onChange={(e) => setIgnoreSyllables(e.target.checked)}
-              />
-              Ignore syllables in search
-            </label>
+            <div className="syllable-strategy">
+              <label className="syllable-strategy-label">
+                Syllable boundaries
+                <span
+                  className="syllable-help"
+                  title={
+                    'Fixed: type the exact boundaries — they must line up with the melody.\n' +
+                    'Ignore: boundaries are dropped; typing "___" finds nothing.\n' +
+                    'Loose: a boundary is required only where you type "___" (the melody may have more elsewhere).'
+                  }
+                  aria-label="How each syllable-boundary strategy works"
+                >?</span>
+              </label>
+              <div className="mode-toggle syllable-toggle">
+                {[
+                  { id: 'fixed', label: 'Fixed', desc: 'Boundaries must match exactly where you type them.' },
+                  { id: 'ignore', label: 'Ignore', desc: 'Boundaries are ignored; typing "___" finds nothing.' },
+                  { id: 'loose', label: 'Loose', desc: 'A boundary is required only where you type "___".' }
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    title={opt.desc}
+                    className={`toggle-btn ${syllableMode === opt.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setSyllableMode(opt.id);
+                      setTimeout(onSearch, 50);
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <WorkflowActions
               getSearchState={getSearchState}
